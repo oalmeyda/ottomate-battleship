@@ -155,3 +155,59 @@ def test_user_stats(client):
     data = res.json()
     assert data["total_matches"] == 0
     assert data["accuracy_pct"] == 0.0
+
+
+def test_leaderboard_scopes_and_stats(client):
+    # 1. Create a PvE match and have player surrender (giving Bot a win)
+    pve_res = client.post(
+        "/api/matches",
+        headers=auth_headers("human1@example.com"),
+        json={"title": "Human vs Bot", "mode": "pve"},
+    )
+    pve_id = pve_res.json()["match"]["id"]
+    client.post(
+        f"/api/matches/{pve_id}/surrender",
+        headers=auth_headers("human1@example.com"),
+    )
+
+    # 2. Create a PvP match and have human2 surrender (giving human1 a win)
+    pvp_res = client.post(
+        "/api/matches",
+        headers=auth_headers("human1@example.com"),
+        json={"title": "Human Duel", "mode": "pvp", "opponent_email": "human2@example.com"},
+    )
+    pvp_id = pvp_res.json()["match"]["id"]
+    client.post(
+        f"/api/matches/{pvp_id}/surrender",
+        headers=auth_headers("human2@example.com"),
+    )
+
+    # Leaderboard: All (should include bot and human matches)
+    res_all = client.get("/api/leaderboard?scope=all", headers=auth_headers("human1@example.com"))
+    assert res_all.status_code == 200
+    data_all = res_all.json()
+    assert data_all["scope"] == "all"
+    emails_all = [r["email"] for r in data_all["leaderboard"]]
+    assert "human1@example.com" in emails_all
+    assert any(e.startswith("bot:") for e in emails_all)
+
+    # Leaderboard: Human Only (must filter out bots!)
+    res_human = client.get("/api/leaderboard?scope=human_only", headers=auth_headers("human1@example.com"))
+    assert res_human.status_code == 200
+    data_human = res_human.json()
+    assert data_human["scope"] == "human_only"
+    emails_human = [r["email"] for r in data_human["leaderboard"]]
+    assert "human1@example.com" in emails_human
+    assert not any(e.startswith("bot:") for e in emails_human)
+
+    # In human_only, human1 has 1 win and 0 losses (the bot loss is excluded!)
+    h1_human_stats = next(r for r in data_human["leaderboard"] if r["email"] == "human1@example.com")
+    assert h1_human_stats["wins"] == 1
+    assert h1_human_stats["losses"] == 0
+    assert h1_human_stats["win_rate"] == 100.0
+
+    # In all, human1 has 1 win and 1 loss
+    h1_all_stats = next(r for r in data_all["leaderboard"] if r["email"] == "human1@example.com")
+    assert h1_all_stats["wins"] == 1
+    assert h1_all_stats["losses"] == 1
+    assert h1_all_stats["win_rate"] == 50.0

@@ -749,42 +749,153 @@
     }
   };
 
-  // --- Stats Modal ---
+  // --- Stats & Leaderboard ---
+
+  let currentStatsScope = "all";
+  let currentLeaderboardScope = "human_only";
 
   window.openStatsModal = async function () {
     const modal = document.getElementById("stats-modal");
-    const content = document.getElementById("stats-content");
     modal.style.display = "flex";
-    content.innerHTML = "<div style='color:#94a3b8;'>Loading command record...</div>";
+    loadUserStats();
+  };
+
+  window.switchStatsScope = function (scope) {
+    currentStatsScope = scope;
+    document.getElementById("btn-stats-scope-all").className = `scope-pill ${scope === "all" ? "active" : ""}`;
+    document.getElementById("btn-stats-scope-human").className = `scope-pill ${scope === "human_only" ? "active" : ""}`;
+    loadUserStats();
+  };
+
+  async function loadUserStats() {
+    const content = document.getElementById("stats-content");
+    content.innerHTML = "<div style='grid-column: 1/-1; text-align: center; color:#94a3b8; padding: 1rem;'>Loading command record...</div>";
 
     try {
-      const stats = await apiFetch("/api/me/stats");
+      const stats = await apiFetch(`/api/me/stats?scope=${currentStatsScope}`);
+      const rankText = stats.rank ? `#${stats.rank}` : "Unranked";
       content.innerHTML = `
-        <div style="background:#1e293b; padding:1rem; border-radius:8px; text-align:center;">
-          <div style="font-size:1.8rem; font-weight:bold; color:#38bdf8;">${stats.wins} - ${stats.losses}</div>
-          <small style="color:#94a3b8;">Record (W-L)</small>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.6rem; font-weight:bold; color:#38bdf8;">${stats.wins} - ${stats.losses}</div>
+          <small style="color:#94a3b8;">Record (W - L)</small>
         </div>
-        <div style="background:#1e293b; padding:1rem; border-radius:8px; text-align:center;">
-          <div style="font-size:1.8rem; font-weight:bold; color:#22c55e;">${stats.win_rate}%</div>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.6rem; font-weight:bold; color:#22c55e;">${stats.win_rate}%</div>
           <small style="color:#94a3b8;">Win Rate</small>
         </div>
-        <div style="background:#1e293b; padding:1rem; border-radius:8px; text-align:center;">
-          <div style="font-size:1.8rem; font-weight:bold; color:#f59e0b;">${stats.hits} / ${stats.total_shots}</div>
-          <small style="color:#94a3b8;">Artillery Hits</small>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.6rem; font-weight:bold; color:#f59e0b;">${stats.hits} / ${stats.total_shots}</div>
+          <small style="color:#94a3b8;">Artillery Hits (${stats.hit_pct}%)</small>
         </div>
-        <div style="background:#1e293b; padding:1rem; border-radius:8px; text-align:center;">
-          <div style="font-size:1.8rem; font-weight:bold; color:#f87171;">${stats.accuracy_pct}%</div>
-          <small style="color:#94a3b8;">Accuracy</small>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.6rem; font-weight:bold; color:#f87171;">${stats.ships_sunk} / ${stats.ships_lost}</div>
+          <small style="color:#94a3b8;">Sunk / Lost</small>
+        </div>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.6rem; font-weight:bold; color:#a855f7;">${stats.current_win_streak} <span style="font-size:0.9rem; color:#94a3b8;">(Best: ${stats.max_win_streak})</span></div>
+          <small style="color:#94a3b8;">🔥 Win Streak</small>
+        </div>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.6rem; font-weight:bold; color:#38bdf8;">${rankText}</div>
+          <small style="color:#94a3b8;">Leaderboard Standing</small>
+        </div>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.6rem; font-weight:bold; color:#eab308;">${stats.flawless_victories}</div>
+          <small style="color:#94a3b8;">⭐ Flawless Victories</small>
+        </div>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.6rem; font-weight:bold; color:#06b6d4;">${stats.avg_shots_to_win ? stats.avg_shots_to_win : "—"}</div>
+          <small style="color:#94a3b8;">Avg Shots to Win</small>
         </div>
       `;
     } catch (err) {
-      content.innerHTML = `<div style="color:#ef4444;">Error: ${err.message}</div>`;
+      content.innerHTML = `<div style="grid-column: 1/-1; color:#ef4444; text-align:center;">Error: ${err.message}</div>`;
     }
-  };
+  }
 
   window.closeStatsModal = function () {
     document.getElementById("stats-modal").style.display = "none";
   };
+
+  // --- Leaderboard Modal ---
+
+  window.openLeaderboardModal = function () {
+    const modal = document.getElementById("leaderboard-modal");
+    modal.style.display = "flex";
+    loadLeaderboard();
+  };
+
+  window.closeLeaderboardModal = function () {
+    document.getElementById("leaderboard-modal").style.display = "none";
+  };
+
+  window.switchLeaderboardScope = function (scope) {
+    currentLeaderboardScope = scope;
+    document.getElementById("btn-lb-scope-human").className = `scope-pill ${scope === "human_only" ? "active" : ""}`;
+    document.getElementById("btn-lb-scope-all").className = `scope-pill ${scope === "all" ? "active" : ""}`;
+    loadLeaderboard();
+  };
+
+  async function loadLeaderboard() {
+    const container = document.getElementById("leaderboard-content");
+    container.innerHTML = "<div style='text-align: center; color: #94a3b8; padding: 2rem;'>Loading fleet standings...</div>";
+
+    try {
+      const data = await apiFetch(`/api/leaderboard?scope=${currentLeaderboardScope}`);
+      const list = data.leaderboard || [];
+
+      if (!list.length) {
+        container.innerHTML = `
+          <div style="text-align: center; color: #94a3b8; padding: 3rem 1rem;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚓</div>
+            <div>No completed battles recorded for this filter yet.</div>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="tactical-table">
+          <thead>
+            <tr>
+              <th style="width: 48px;">Rank</th>
+              <th>Commander</th>
+              <th>Record</th>
+              <th>Win %</th>
+              <th>Hit %</th>
+              <th>Sunk / Lost</th>
+              <th>Streak</th>
+              <th>Flawless</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${list.map((r) => {
+              const rankClass = r.rank <= 3 ? `rank-${r.rank}` : "";
+              const botBadge = r.is_bot ? `<span style="font-size:0.75rem; background:rgba(56,189,248,0.2); color:#38bdf8; padding:0.15rem 0.4rem; border-radius:4px; margin-left:0.35rem;">BOT</span>` : "";
+              const isMe = currentUser && r.email === currentUser.email;
+              const rowStyle = isMe ? "background: rgba(2, 132, 199, 0.15);" : "";
+              return `
+                <tr style="${rowStyle}">
+                  <td><span class="rank-badge ${rankClass}">#${r.rank}</span></td>
+                  <td>
+                    <b>${escapeHtml(r.display_name)}</b>${botBadge}
+                    <div style="font-size:0.75rem; color:#64748b;">${escapeHtml(r.email)}</div>
+                  </td>
+                  <td><b>${r.wins}</b> - ${r.losses}</td>
+                  <td style="color:${r.win_rate >= 50 ? "#22c55e" : "#cbd5e1"}; font-weight:600;">${r.win_rate}%</td>
+                  <td style="color:#f59e0b; font-weight:600;">${r.hit_pct}%</td>
+                  <td><span style="color:#22c55e;">${r.ships_sunk}</span> / <span style="color:#ef4444;">${r.ships_lost}</span></td>
+                  <td>${r.current_win_streak > 0 ? `🔥 ${r.current_win_streak}` : "—"}</td>
+                  <td>${r.flawless_victories > 0 ? `⭐ ${r.flawless_victories}` : "—"}</td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      `;
+    } catch (err) {
+      container.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 2rem;">Error: ${err.message}</div>`;
+    }
+  }
 
   function setupKeybindings() {
     window.addEventListener("keydown", (e) => {
@@ -794,6 +905,7 @@
       if (e.key === "Escape") {
         closeNewMatchModal();
         closeStatsModal();
+        closeLeaderboardModal();
       }
     });
   }
@@ -811,3 +923,4 @@
   // Boot
   document.addEventListener("DOMContentLoaded", initApp);
 })();
+

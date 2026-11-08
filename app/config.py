@@ -27,3 +27,4 @@ def google_client_id() -> str:
 def organizer_emails() -> list[str]:
     raw = os.getenv("ORGANIZER_EMAILS", "admin@example.com")
     return [e.strip().lower() for e in raw.split(",") if e.strip()]
+

@@ -45,3 +45,4 @@ DEV_MODE=1 uvicorn app.main:app --reload --port 8080
 ```
 
 Navigate to `http://localhost:8080` to play.
+

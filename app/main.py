@@ -15,3 +15,4 @@ app = create_ottomate_app(
     static_dir=STATIC_DIR,
     routers=[battleship_router],
 )
+

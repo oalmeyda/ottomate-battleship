@@ -275,3 +275,4 @@ class BoardState(BaseModel):
             "sunk_ships": self.sunk_ships,
             "is_fleet_sunk": self.is_fleet_sunk,
         }
+

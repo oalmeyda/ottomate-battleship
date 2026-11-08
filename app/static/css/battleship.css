@@ -439,3 +439,69 @@ body {
 .badge-setup { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
 .badge-in_progress { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
 .badge-completed { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
+
+
+
+/* Scope Filter Pills */
+.scope-pill {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #94a3b8;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.scope-pill:hover {
+  background: rgba(51, 65, 85, 0.8);
+  color: #f8fafc;
+}
+
+.scope-pill.active {
+  background: rgba(2, 132, 199, 0.3);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
+
+/* Leaderboard Table */
+.tactical-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: #e2e8f0;
+}
+
+.tactical-table th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  color: #94a3b8;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tactical-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tactical-table tr:hover td {
+  background: rgba(30, 41, 59, 0.4);
+}
+
+.rank-badge {
+  font-weight: 800;
+  font-size: 0.95rem;
+  display: inline-block;
+  min-width: 28px;
+}
+
+.rank-1 { color: #f59e0b; text-shadow: 0 0 8px rgba(245, 158, 11, 0.5); }
+.rank-2 { color: #94a3b8; }
+.rank-3 { color: #d97706; }

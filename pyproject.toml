@@ -42,3 +42,4 @@ include = ["app*"]
 
 [tool.setuptools.package-data]
 app = ["static/**/*"]
+

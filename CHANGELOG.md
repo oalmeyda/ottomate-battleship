@@ -16,3 +16,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 3-tier RBAC authorization, proxy delegation, and multi-database Firestore isolation (`battleship` and `(default)`).
 - Responsive tactical radar frontend with dual-grid view and short-polling live updates.
 - Automated version consistency and unit test suite.
+

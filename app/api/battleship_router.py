@@ -32,6 +32,7 @@ from app.engine.domain import (
     generate_random_fleet,
     validate_fleet_placement,
 )
+from app.engine.stats import compute_leaderboard_and_stats
 from app.models import (
     BattleshipMatch,
     CreateMatchRequest,
@@ -570,51 +571,60 @@ def delete_match(
     return {"message": f"Match '{match_id}' deleted successfully"}
 
 
-@router.get("/me/stats")
-def get_user_stats(
+@router.get("/leaderboard")
+def get_leaderboard(
+    scope: str = Query("all", pattern="^(all|human_only)$"),
     user: User = Depends(get_authenticated_user),
 ) -> dict[str, Any]:
-    """Computes personal win/loss and shot accuracy statistics for the user."""
+    """Retrieves sorted leaderboard standings across all matches or human-only matches."""
     db = database()
-    user_email = normalize_email(user.email)
-
-    docs = db.collection(MATCHES_COLLECTION).stream()
-    total_matches = 0
-    wins = 0
-    losses = 0
-    total_shots = 0
-    hits = 0
-
-    for doc in docs:
-        m = doc.to_dict() or {}
-        p1 = m.get("player1_email")
-        p2 = m.get("player2_email")
-
-        if p1 != user_email and p2 != user_email:
-            continue
-
-        if m.get("status") == "completed":
-            total_matches += 1
-            if m.get("winner_email") == user_email:
-                wins += 1
-            else:
-                losses += 1
-
-        for shot in m.get("history", []):
-            if shot.get("player_email") == user_email:
-                total_shots += 1
-                if shot.get("result") == "hit":
-                    hits += 1
-
-    accuracy = round((hits / total_shots) * 100, 1) if total_shots > 0 else 0.0
+    matches = [doc.to_dict() or {} for doc in db.collection(MATCHES_COLLECTION).stream()]
+    leaderboard, _ = compute_leaderboard_and_stats(matches, scope=scope)
 
     return {
-        "email": user_email,
-        "total_matches": total_matches,
-        "wins": wins,
-        "losses": losses,
-        "win_rate": round((wins / total_matches) * 100, 1) if total_matches > 0 else 0.0,
-        "total_shots": total_shots,
-        "hits": hits,
-        "accuracy_pct": accuracy,
+        "scope": scope,
+        "total_players": len(leaderboard),
+        "leaderboard": leaderboard,
     }
+
+
+@router.get("/me/stats")
+def get_user_stats(
+    scope: str = Query("all", pattern="^(all|human_only)$"),
+    user: User = Depends(get_authenticated_user),
+) -> dict[str, Any]:
+    """Computes comprehensive statistics and command records for the user under the given scope."""
+    db = database()
+    user_email = normalize_email(user.email)
+    matches = [doc.to_dict() or {} for doc in db.collection(MATCHES_COLLECTION).stream()]
+    leaderboard, player_records = compute_leaderboard_and_stats(matches, scope=scope)
+
+    stats = player_records.get(user_email)
+    if not stats:
+        stats = {
+            "email": user_email,
+            "display_name": user.display_name or user_email,
+            "is_bot": False,
+            "total_matches": 0,
+            "wins": 0,
+            "losses": 0,
+            "win_rate": 0.0,
+            "total_shots": 0,
+            "hits": 0,
+            "misses": 0,
+            "hit_pct": 0.0,
+            "ships_sunk": 0,
+            "ships_lost": 0,
+            "flawless_victories": 0,
+            "avg_shots_to_win": 0.0,
+            "current_win_streak": 0,
+            "max_win_streak": 0,
+            "rank": None,
+        }
+    else:
+        rank = next((r["rank"] for r in leaderboard if r["email"] == user_email), None)
+        stats["rank"] = rank
+
+    stats["scope"] = scope
+    stats["accuracy_pct"] = stats["hit_pct"]
+    return stats

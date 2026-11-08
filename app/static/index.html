@@ -31,6 +31,7 @@
     <div class="header-actions">
       <button id="btn-lobby" class="btn btn-secondary" onclick="showLobbyView()" title="All Battles">⚓ Lobby</button>
       <button id="btn-new-match" class="btn btn-primary" onclick="openNewMatchModal()" style="background: #0284c7; border-color: #0284c7;">➕ New Battle</button>
+      <button id="btn-leaderboard" class="btn btn-secondary" onclick="openLeaderboardModal()" title="Fleet Leaderboard">🏆 Leaderboard</button>
       <button id="btn-stats" class="btn btn-secondary" onclick="openStatsModal()" title="Personal Stats">📊 Stats</button>
       <button id="btn-directory" class="btn btn-secondary" style="display: none;" onclick="showDirectoryModal()" title="Players Directory">👥 Directory</button>
 
@@ -180,16 +181,43 @@
 
   <!-- Stats Modal -->
   <div id="stats-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-content" style="max-width: 450px; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.3);">
+    <div class="modal-content" style="max-width: 500px; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.3);">
       <div class="modal-header">
         <h3 style="margin: 0; color: #f8fafc;">Naval Command Record</h3>
         <button class="modal-close-btn" onclick="closeStatsModal()">&times;</button>
       </div>
-      <div id="stats-content" style="padding: 1rem 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div style="display:flex; justify-content:center; gap:0.5rem; margin-top: 1rem;">
+        <button id="btn-stats-scope-all" class="scope-pill active" onclick="switchStatsScope('all')">🌐 Overall (Inc. Bots)</button>
+        <button id="btn-stats-scope-human" class="scope-pill" onclick="switchStatsScope('human_only')">👥 Humans Only (PvP)</button>
+      </div>
+      <div id="stats-content" style="padding: 1rem 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
         <!-- Populated via API -->
       </div>
       <div style="display:flex; justify-content:flex-end;">
         <button type="button" class="btn btn-secondary" onclick="closeStatsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Modal -->
+  <div id="leaderboard-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; width: 95%; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.3);">
+      <div class="modal-header">
+        <div>
+          <h3 style="margin: 0; color: #f8fafc;">🏆 Fleet Command Leaderboard</h3>
+          <small style="color: #94a3b8;">Rankings, artillery precision, and fleet destruction statistics</small>
+        </div>
+        <button class="modal-close-btn" onclick="closeLeaderboardModal()">&times;</button>
+      </div>
+      <div style="display:flex; justify-content:flex-start; gap:0.5rem; margin-top: 1rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem;">
+        <button id="btn-lb-scope-human" class="scope-pill active" onclick="switchLeaderboardScope('human_only')">👥 Humans Only (PvP)</button>
+        <button id="btn-lb-scope-all" class="scope-pill" onclick="switchLeaderboardScope('all')">🌐 Overall (Inc. Bots)</button>
+      </div>
+      <div id="leaderboard-content" style="padding: 1rem 0; max-height: 480px; overflow-y: auto;">
+        <!-- Populated via API -->
+      </div>
+      <div style="display:flex; justify-content:flex-end; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.75rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeLeaderboardModal()">Close</button>
       </div>
     </div>
   </div>
@@ -203,3 +231,4 @@
   <script src="/static/js/battleship.js?v=0.1.0"></script>
 </body>
 </html>
+

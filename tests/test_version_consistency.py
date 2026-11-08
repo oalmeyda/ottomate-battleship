@@ -13,3 +13,4 @@ def test_service_version_consistency():
         app=app,
         index_file=REPO_ROOT / "app" / "static" / "index.html",
     )
+
