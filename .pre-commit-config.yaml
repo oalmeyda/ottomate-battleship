@@ -1,0 +1,19 @@
+# Managed by Copier from ottomate-core (project_type: service); DO NOT EDIT MANUALLY
+repos:
+  - repo: local
+    hooks:
+
+      - id: ruff-check
+        name: Ruff Linter
+        entry: bash -c 'if [ -x .venv/bin/ruff ]; then .venv/bin/ruff check .; else ruff check .; fi'
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pytest
+        name: Pytest Unit Tests (CI-isolated credentials)
+        entry: bash -c 'export GOOGLE_APPLICATION_CREDENTIALS=/nonexistent CLOUDSDK_CONFIG=/nonexistent; if [ -x .venv/bin/pytest ]; then .venv/bin/pytest -q; else pytest -q; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+

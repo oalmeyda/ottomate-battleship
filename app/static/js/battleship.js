@@ -1,0 +1,813 @@
+/**
+ * Ottomate Battleship Client Application
+ */
+
+(function () {
+  const FLEET_SPECS = {
+    carrier: { name: "Carrier", size: 5, symbol: "C" },
+    battleship: { name: "Battleship", size: 4, symbol: "B" },
+    cruiser: { name: "Cruiser", size: 3, symbol: "R" },
+    submarine: { name: "Submarine", size: 3, symbol: "S" },
+    destroyer: { name: "Destroyer", size: 2, symbol: "D" },
+  };
+
+  const GRID_SIZE = 10;
+  const COLUMNS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+
+  let currentUser = null;
+  let activeMatchId = null;
+  let currentMatchData = null;
+  let pollInterval = null;
+
+  // Deployment Phase State
+  let currentOrientation = "horizontal"; // 'horizontal' | 'vertical'
+  let selectedShipId = null;
+  let deployedShips = {}; // ship_id -> { ship_id, row, col, orientation }
+
+  // --- Auth & Init ---
+
+  async function initApp() {
+    setupAuth();
+    setupKeybindings();
+  }
+
+  function setupAuth() {
+    if (window.Ottomate && typeof window.Ottomate.initHeader === "function") {
+      window.Ottomate.initHeader({
+        onSignOut: () => logout(),
+        onBrandClicked: () => showLobbyView(),
+        onProfileClicked: () => window.showProfileModal && window.showProfileModal(),
+        onDirectoryClicked: () => window.showDirectoryModal && window.showDirectoryModal(),
+      });
+    }
+
+    fetch("/api/config")
+      .then((res) => res.json())
+      .then((config) => {
+        if (config && window.Ottomate && typeof window.Ottomate.setupSignIn === "function") {
+          window.Ottomate.setupSignIn(config, async (token) => {
+            if (token && typeof window.Ottomate.storeAuthToken === "function") {
+              window.Ottomate.storeAuthToken(token);
+            }
+            await onUserSignedIn();
+          });
+        }
+      })
+      .catch((err) => console.warn("Failed to load /api/config:", err));
+
+    const token = window.Ottomate && typeof window.Ottomate.getStoredAuthToken === "function"
+      ? window.Ottomate.getStoredAuthToken()
+      : null;
+
+    if (token) {
+      onUserSignedIn();
+    } else {
+      showSignInPrompt();
+    }
+  }
+
+  async function onUserSignedIn() {
+    try {
+      const res = await apiFetch("/api/me");
+      if (res && res.email) {
+        currentUser = res;
+        updateHeaderUser(currentUser);
+        loadLobby();
+        loadUserDatalist();
+      }
+    } catch (err) {
+      console.error("Auth check failed:", err);
+      showSignInPrompt();
+    }
+  }
+
+  function showSignInPrompt() {
+    const banner = document.getElementById("status-banner");
+    banner.style.display = "flex";
+    document.getElementById("turn-dot").className = "status-indicator-dot waiting-turn";
+    document.getElementById("status-title").textContent = "Welcome to Ottomate Battleship";
+    document.getElementById("status-subtitle").textContent = "Sign in above with your Google account or Dev mode to battle.";
+    document.getElementById("lobby-view").style.display = "none";
+    document.getElementById("battle-view").style.display = "none";
+  }
+
+  function updateHeaderUser(user) {
+    const profilePill = document.getElementById("profile-pill");
+    const profileAvatar = document.getElementById("profile-avatar");
+    const profileName = document.getElementById("profile-name");
+    const btnLogout = document.getElementById("btn-logout");
+    const btnDir = document.getElementById("btn-directory");
+
+    if (profilePill) profilePill.style.display = "flex";
+    if (profileName) profileName.textContent = user.nickname || user.display_name || user.email;
+    if (profileAvatar) {
+      const initials = (user.display_name || user.email).substring(0, 2).toUpperCase();
+      profileAvatar.textContent = initials;
+    }
+    if (btnLogout) btnLogout.style.display = "inline-block";
+    if (btnDir && (user.system_role === "super_admin" || user.roles?.battleship === "game_admin")) {
+      btnDir.style.display = "inline-block";
+    }
+  }
+
+  function logout() {
+    if (window.Ottomate && typeof window.Ottomate.clearAuthToken === "function") {
+      window.Ottomate.clearAuthToken();
+    }
+    location.reload();
+  }
+
+  // --- API Fetch Helper ---
+
+  async function apiFetch(url, options = {}) {
+    const headers = options.headers || {};
+    const token = window.Ottomate && typeof window.Ottomate.getStoredAuthToken === "function"
+      ? window.Ottomate.getStoredAuthToken()
+      : null;
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (options.body && typeof options.body === "object") {
+      headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(options.body);
+    }
+    options.headers = headers;
+
+    const res = await fetch(url, options);
+    if (!res.ok) {
+      let errorMsg = `HTTP ${res.status}`;
+      try {
+        const errJson = await res.json();
+        if (errJson.detail) errorMsg = errJson.detail;
+      } catch (e) {}
+      throw new Error(errorMsg);
+    }
+    return res.json();
+  }
+
+  async function loadUserDatalist() {
+    try {
+      const data = await apiFetch("/api/users");
+      const datalist = document.getElementById("user-datalist");
+      if (datalist && data.users) {
+        datalist.innerHTML = data.users
+          .map((u) => `<option value="${u.email}">${u.display_name || u.email}</option>`)
+          .join("");
+      }
+    } catch (e) {
+      // Ignored if non-admin
+    }
+  }
+
+  // --- Lobby & Matches ---
+
+  window.showLobbyView = function () {
+    stopPolling();
+    activeMatchId = null;
+    currentMatchData = null;
+    document.getElementById("battle-view").style.display = "none";
+    document.getElementById("status-banner").style.display = "none";
+    document.getElementById("lobby-view").style.display = "block";
+    loadLobby();
+  };
+
+  async function loadLobby() {
+    if (!currentUser) return;
+    document.getElementById("lobby-view").style.display = "block";
+    const container = document.getElementById("matches-list");
+    container.innerHTML = "<div style='color:#94a3b8;'>Loading active battles...</div>";
+
+    try {
+      const data = await apiFetch("/api/matches");
+      renderMatchesList(data.matches || []);
+    } catch (err) {
+      container.innerHTML = `<div style="color:#ef4444;">Error loading matches: ${err.message}</div>`;
+    }
+  }
+
+  function renderMatchesList(matches) {
+    const container = document.getElementById("matches-list");
+    if (!matches.length) {
+      container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem; color: #94a3b8;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚓</div>
+          <div style="font-size: 1.1rem; font-weight: 600; color: #f8fafc;">No active naval battles found</div>
+          <div style="margin-top: 0.25rem;">Start a duel against an AI commander or challenge a friend!</div>
+          <button class="btn btn-primary" onclick="openNewMatchModal()" style="margin-top: 1rem; background: #0284c7; border-color: #0284c7;">➕ New Battle</button>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = matches
+      .map((m) => {
+        const isP1 = m.player1_email === currentUser.email;
+        const oppName = isP1 ? (m.player2_name || "Waiting for opponent...") : (m.player1_name || m.player1_email);
+        const statusBadge = `<span class="badge-status badge-${m.status}">${m.status.toUpperCase()}</span>`;
+        let turnText = "";
+        if (m.status === "in_progress") {
+          turnText = m.turn_player === currentUser.email ? "🟢 Your Turn" : "⏳ Opponent's Turn";
+        } else if (m.status === "completed") {
+          turnText = m.winner_email === currentUser.email ? "🏆 Victory" : "💥 Defeated";
+        } else {
+          turnText = "🛠️ Setup Phase";
+        }
+
+        return `
+          <div class="match-card" onclick="openMatch('${m.id}')">
+            <div class="match-card-top">
+              <span style="font-weight: 700; color: #f8fafc;">${escapeHtml(m.title)}</span>
+              ${statusBadge}
+            </div>
+            <div style="font-size: 0.85rem; color: #94a3b8;">
+              Opponent: <b style="color: #cbd5e1;">${escapeHtml(oppName)}</b>
+            </div>
+            <div style="font-size: 0.8rem; margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 600; color: #38bdf8;">${turnText}</span>
+              <span style="color: #64748b;">${m.mode === "pve" ? "🤖 AI" : "👥 PvP"}</span>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  // --- Match Creation Modal ---
+
+  window.openNewMatchModal = function () {
+    document.getElementById("new-match-modal").style.display = "flex";
+  };
+
+  window.closeNewMatchModal = function () {
+    document.getElementById("new-match-modal").style.display = "none";
+  };
+
+  window.toggleOpponentType = function (mode) {
+    const botGroup = document.getElementById("bot-difficulty-group");
+    const pvpGroup = document.getElementById("pvp-opponent-group");
+    if (mode === "pve") {
+      botGroup.style.display = "block";
+      pvpGroup.style.display = "none";
+    } else {
+      botGroup.style.display = "none";
+      pvpGroup.style.display = "block";
+    }
+  };
+
+  window.handleCreateMatch = async function (e) {
+    e.preventDefault();
+    const title = document.getElementById("match-title").value;
+    const mode = document.getElementById("match-mode").value;
+    const bot_difficulty = document.getElementById("bot-difficulty").value;
+    const opponent_email = document.getElementById("opponent-email").value.trim() || null;
+
+    try {
+      const data = await apiFetch("/api/matches", {
+        method: "POST",
+        body: { title, mode, bot_difficulty, opponent_email },
+      });
+      closeNewMatchModal();
+      openMatch(data.match.id);
+    } catch (err) {
+      alert(`Failed to create battle: ${err.message}`);
+    }
+  };
+
+  // --- Active Match Lifecycle ---
+
+  window.openMatch = async function (matchId) {
+    activeMatchId = matchId;
+    document.getElementById("lobby-view").style.display = "none";
+    document.getElementById("battle-view").style.display = "block";
+    document.getElementById("status-banner").style.display = "flex";
+
+    deployedShips = {};
+    selectedShipId = "carrier";
+
+    await refreshMatchState();
+    startPolling();
+  };
+
+  function startPolling() {
+    stopPolling();
+    pollInterval = setInterval(() => {
+      if (document.visibilityState === "visible" && activeMatchId) {
+        refreshMatchState();
+      }
+    }, 2200);
+  }
+
+  function stopPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  }
+
+  async function refreshMatchState() {
+    if (!activeMatchId) return;
+    try {
+      const data = await apiFetch(`/api/matches/${activeMatchId}`);
+      currentMatchData = data;
+      renderMatch(data);
+    } catch (err) {
+      console.error("Match refresh error:", err);
+    }
+  }
+
+  function renderMatch(match) {
+    renderStatusBanner(match);
+    renderGridBoards(match);
+    renderFleetHealth(match);
+    renderHistoryFeed(match);
+
+    const dock = document.getElementById("deployment-dock");
+    if (match.status === "setup") {
+      dock.style.display = "block";
+      renderDeploymentDock();
+    } else {
+      dock.style.display = "none";
+    }
+  }
+
+  function renderStatusBanner(match) {
+    const dot = document.getElementById("turn-dot");
+    const title = document.getElementById("status-title");
+    const subtitle = document.getElementById("status-subtitle");
+    const actions = document.getElementById("status-actions");
+
+    actions.innerHTML = "";
+
+    if (match.status === "setup") {
+      dot.className = "status-indicator-dot waiting-turn";
+      title.textContent = `Setup Phase • ${match.title}`;
+      const myReady = match.my_role === "player1" ? match.player1.ready : match.player2.ready;
+      const oppReady = match.my_role === "player1" ? match.player2.ready : match.player1.ready;
+
+      if (!myReady) {
+        subtitle.textContent = "Deploy your 5 warships on Your Fleet Waters to commence battle.";
+      } else if (!oppReady) {
+        subtitle.textContent = "Fleet deployed! Waiting for opponent to position their fleet...";
+      } else {
+        subtitle.textContent = "Both fleets deployed. Starting combat...";
+      }
+    } else if (match.status === "in_progress") {
+      if (match.is_my_turn) {
+        dot.className = "status-indicator-dot active-turn";
+        title.textContent = "🎯 YOUR TURN TO FIRE!";
+        subtitle.textContent = "Click any coordinate on the Radar to launch an artillery strike. (Hits grant a bonus shot!)";
+      } else {
+        dot.className = "status-indicator-dot waiting-turn";
+        title.textContent = "⏳ Enemy Admiral's Turn";
+        const oppName = match.my_role === "player1" ? match.player2.name : match.player1.name;
+        subtitle.textContent = `Waiting for ${oppName} to fire...`;
+      }
+
+      actions.innerHTML = `
+        <button class="btn btn-secondary" onclick="confirmSurrender()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">🏳️ Forfeit</button>
+      `;
+    } else if (match.status === "completed") {
+      const isWinner = match.winner_email === currentUser.email;
+      dot.className = "status-indicator-dot";
+      dot.style.background = isWinner ? "#22c55e" : "#ef4444";
+      title.textContent = isWinner ? "🏆 NAVAL VICTORY!" : "💥 FLEET DESTROYED";
+      subtitle.textContent = isWinner
+        ? "All enemy vessels have been sent to the ocean floor. Outstanding command!"
+        : "Your fleet has been completely sunk. Honor to the fallen.";
+
+      actions.innerHTML = `
+        <button class="btn btn-primary" onclick="showLobbyView()" style="background:#0284c7; border-color:#0284c7;">⚓ Return to Lobby</button>
+      `;
+    }
+  }
+
+  // --- Grid Rendering ---
+
+  function renderGridBoards(match) {
+    renderRadarBoard(match);
+    renderFleetBoard(match);
+  }
+
+  function createEmptyGridHtml(prefix) {
+    let html = `<div class="grid-header-cell"></div>`;
+    for (let c = 0; c < GRID_SIZE; c++) {
+      html += `<div class="grid-header-cell">${COLUMNS[c]}</div>`;
+    }
+    for (let r = 0; r < GRID_SIZE; r++) {
+      html += `<div class="grid-header-cell">${r + 1}</div>`;
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const coord = `${COLUMNS[c]}${r + 1}`;
+        html += `<div id="${prefix}-${coord}" data-coord="${coord}" data-r="${r}" data-c="${c}" class="grid-cell"></div>`;
+      }
+    }
+    return html;
+  }
+
+  function renderRadarBoard(match) {
+    const container = document.getElementById("radar-board");
+    if (!container.innerHTML) {
+      container.innerHTML = createEmptyGridHtml("radar");
+    }
+
+    const radar = match.radar_board || {};
+    const shots = radar.shots_received || {};
+    const sunkShipCoords = radar.sunk_ships_coords || {};
+
+    const allSunkCells = new Set();
+    Object.values(sunkShipCoords).forEach((cells) => cells.forEach((c) => allSunkCells.add(c)));
+
+    const canFire = match.status === "in_progress" && match.is_my_turn;
+
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const coord = `${COLUMNS[c]}${r + 1}`;
+        const cell = document.getElementById(`radar-${coord}`);
+        if (!cell) continue;
+
+        cell.className = "grid-cell";
+        cell.onclick = null;
+
+        const shot = shots[coord];
+        if (shot) {
+          if (shot.result === "hit") {
+            cell.classList.add("hit");
+            if (allSunkCells.has(coord)) {
+              cell.classList.add("sunk-ship");
+            }
+          } else {
+            cell.classList.add("miss");
+          }
+        } else if (canFire) {
+          cell.onclick = () => handleFireShot(coord);
+        } else {
+          cell.classList.add("disabled");
+        }
+      }
+    }
+  }
+
+  function renderFleetBoard(match) {
+    const container = document.getElementById("fleet-board");
+    if (!container.innerHTML) {
+      container.innerHTML = createEmptyGridHtml("fleet");
+    }
+
+    const myBoard = match.my_board || {};
+    const ships = match.status === "setup" ? getDeployedCoordinatesMap() : myBoard.ships || {};
+    const shots = myBoard.shots_received || {};
+
+    const occupied = {};
+    Object.entries(ships).forEach(([shipId, coords]) => {
+      coords.forEach((coord) => {
+        occupied[coord] = shipId;
+      });
+    });
+
+    const isSetup = match.status === "setup";
+
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const coord = `${COLUMNS[c]}${r + 1}`;
+        const cell = document.getElementById(`fleet-${coord}`);
+        if (!cell) continue;
+
+        cell.className = "grid-cell";
+        cell.onclick = null;
+        cell.onmouseenter = null;
+        cell.onmouseleave = null;
+
+        if (occupied[coord]) {
+          cell.classList.add("ship");
+        }
+
+        const shot = shots[coord];
+        if (shot) {
+          if (shot.result === "hit") {
+            cell.classList.add("hit");
+          } else {
+            cell.classList.add("miss");
+          }
+        }
+
+        if (isSetup) {
+          cell.onclick = () => handlePlaceShipAt(r, c);
+          cell.onmouseenter = () => handleCellHover(r, c);
+          cell.onmouseleave = () => handleCellLeave();
+        }
+      }
+    }
+  }
+
+  function renderFleetHealth(match) {
+    const myHealthContainer = document.getElementById("my-fleet-health");
+    const enemyHealthContainer = document.getElementById("enemy-fleet-health");
+
+    const mySunk = new Set((match.my_board && match.my_board.sunk_ships) || []);
+    const enemySunk = new Set((match.radar_board && match.radar_board.sunk_ships) || []);
+
+    myHealthContainer.innerHTML = Object.entries(FLEET_SPECS)
+      .map(([id, spec]) => {
+        const isSunk = mySunk.has(id);
+        return `<span class="ship-badge ${isSunk ? "sunk" : ""}">${spec.name}</span>`;
+      })
+      .join("");
+
+    enemyHealthContainer.innerHTML = Object.entries(FLEET_SPECS)
+      .map(([id, spec]) => {
+        const isSunk = enemySunk.has(id);
+        return `<span class="ship-badge ${isSunk ? "sunk" : ""}">${spec.name}</span>`;
+      })
+      .join("");
+  }
+
+  function renderHistoryFeed(match) {
+    const feed = document.getElementById("history-feed");
+    const container = document.getElementById("feed-entries");
+    const history = match.history || [];
+
+    if (!history.length) {
+      feed.style.display = "none";
+      return;
+    }
+
+    feed.style.display = "block";
+    container.innerHTML = history
+      .slice(-10)
+      .reverse()
+      .map((entry) => {
+        const isMe = entry.player_email === currentUser.email;
+        const actorName = isMe ? "You" : "Opponent";
+        const badge = entry.result === "hit"
+          ? `<span class="feed-badge-hit">HIT at ${entry.coordinate}</span>`
+          : `<span class="feed-badge-miss">Miss at ${entry.coordinate}</span>`;
+        const sunkMsg = entry.sunk ? ` • 💥 <b>${escapeHtml(entry.ship_name)} Sunk!</b>` : "";
+        return `<div class="feed-entry"><span>Turn ${entry.turn}:</span> <b>${actorName}</b> fired — ${badge}${sunkMsg}</div>`;
+      })
+      .join("");
+  }
+
+  // --- Fleet Placement (Setup Phase) ---
+
+  function renderDeploymentDock() {
+    const container = document.getElementById("dock-ships");
+    container.innerHTML = Object.entries(FLEET_SPECS)
+      .map(([id, spec]) => {
+        const isPlaced = !!deployedShips[id];
+        const isSelected = selectedShipId === id;
+        return `
+          <div class="dock-ship-item ${isSelected ? "selected" : ""} ${isPlaced ? "placed" : ""}" onclick="selectShipForPlacement('${id}')">
+            <b>${spec.name}</b> (${spec.size} cells)
+          </div>
+        `;
+      })
+      .join("");
+
+    const deployBtn = document.getElementById("btn-deploy-fleet");
+    deployBtn.disabled = Object.keys(deployedShips).length !== 5;
+  }
+
+  window.selectShipForPlacement = function (shipId) {
+    selectedShipId = shipId;
+    renderDeploymentDock();
+  };
+
+  window.toggleOrientation = function () {
+    currentOrientation = currentOrientation === "horizontal" ? "vertical" : "horizontal";
+    const btn = document.getElementById("btn-rotate-ship");
+    btn.textContent = `🔄 Rotate (${currentOrientation === "horizontal" ? "Horizontal" : "Vertical"})`;
+    renderFleetBoard(currentMatchData);
+  };
+
+  function getShipCoordinates(shipId, row, col, orientation) {
+    const size = FLEET_SPECS[shipId].size;
+    const coords = [];
+    for (let i = 0; i < size; i++) {
+      const r = row + (orientation === "vertical" ? i : 0);
+      const c = col + (orientation === "horizontal" ? i : 0);
+      if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) {
+        return null; // out of bounds
+      }
+      coords.push(`${COLUMNS[c]}${r + 1}`);
+    }
+    return coords;
+  }
+
+  function getDeployedCoordinatesMap() {
+    const map = {};
+    Object.entries(deployedShips).forEach(([shipId, placement]) => {
+      const coords = getShipCoordinates(
+        shipId,
+        placement.row,
+        placement.col,
+        placement.orientation
+      );
+      if (coords) map[shipId] = coords;
+    });
+    return map;
+  }
+
+  function handleCellHover(r, c) {
+    if (!selectedShipId) return;
+    const coords = getShipCoordinates(selectedShipId, r, c, currentOrientation);
+    const existing = getDeployedCoordinatesMap();
+
+    // Check collision with other ships
+    let invalid = !coords;
+    if (coords) {
+      for (const [shipId, shipCoords] of Object.entries(existing)) {
+        if (shipId === selectedShipId) continue;
+        if (coords.some((cell) => shipCoords.includes(cell))) {
+          invalid = true;
+          break;
+        }
+      }
+    }
+
+    if (coords) {
+      coords.forEach((coord) => {
+        const cell = document.getElementById(`fleet-${coord}`);
+        if (cell) cell.classList.add(invalid ? "ship-ghost-invalid" : "ship-ghost");
+      });
+    }
+  }
+
+  function handleCellLeave() {
+    document.querySelectorAll(".ship-ghost, .ship-ghost-invalid").forEach((cell) => {
+      cell.classList.remove("ship-ghost", "ship-ghost-invalid");
+    });
+  }
+
+  function handlePlaceShipAt(r, c) {
+    if (!selectedShipId) return;
+    const coords = getShipCoordinates(selectedShipId, r, c, currentOrientation);
+    if (!coords) return;
+
+    // Check overlap
+    const existing = getDeployedCoordinatesMap();
+    for (const [shipId, shipCoords] of Object.entries(existing)) {
+      if (shipId === selectedShipId) continue;
+      if (coords.some((cell) => shipCoords.includes(cell))) {
+        return; // Overlaps
+      }
+    }
+
+    deployedShips[selectedShipId] = {
+      ship_id: selectedShipId,
+      row: r,
+      col: c,
+      orientation: currentOrientation,
+    };
+
+    // Auto-select next unplaced ship
+    const unplaced = Object.keys(FLEET_SPECS).find((id) => !deployedShips[id]);
+    selectedShipId = unplaced || null;
+
+    handleCellLeave();
+    renderFleetBoard(currentMatchData);
+    renderDeploymentDock();
+  }
+
+  window.randomizeFleet = function () {
+    const ships = Object.keys(FLEET_SPECS);
+    const newDeployment = {};
+    const occupied = new Set();
+
+    for (const shipId of ships) {
+      const size = FLEET_SPECS[shipId].size;
+      let placed = false;
+      let attempts = 0;
+      while (!placed && attempts < 1000) {
+        attempts++;
+        const orientation = Math.random() > 0.5 ? "horizontal" : "vertical";
+        const row = Math.floor(Math.random() * (orientation === "vertical" ? GRID_SIZE - size + 1 : GRID_SIZE));
+        const col = Math.floor(Math.random() * (orientation === "horizontal" ? GRID_SIZE - size + 1 : GRID_SIZE));
+
+        const coords = [];
+        for (let i = 0; i < size; i++) {
+          const r = row + (orientation === "vertical" ? i : 0);
+          const c = col + (orientation === "horizontal" ? i : 0);
+          coords.push(`${r},${c}`);
+        }
+
+        if (!coords.some((c) => occupied.has(c))) {
+          coords.forEach((c) => occupied.add(c));
+          newDeployment[shipId] = { ship_id: shipId, row, col, orientation };
+          placed = true;
+        }
+      }
+    }
+
+    deployedShips = newDeployment;
+    selectedShipId = null;
+    renderFleetBoard(currentMatchData);
+    renderDeploymentDock();
+  };
+
+  window.confirmDeployment = async function () {
+    if (Object.keys(deployedShips).length !== 5) {
+      alert("Please place all 5 ships before deploying.");
+      return;
+    }
+
+    const payload = {
+      ships: Object.values(deployedShips),
+    };
+
+    try {
+      await apiFetch(`/api/matches/${activeMatchId}/deploy`, {
+        method: "POST",
+        body: payload,
+      });
+      refreshMatchState();
+    } catch (err) {
+      alert(`Deployment failed: ${err.message}`);
+    }
+  };
+
+  // --- Firing Action ---
+
+  async function handleFireShot(coord) {
+    if (!activeMatchId) return;
+    try {
+      const res = await apiFetch(`/api/matches/${activeMatchId}/fire`, {
+        method: "POST",
+        body: { coordinate: coord },
+      });
+      refreshMatchState();
+    } catch (err) {
+      alert(`Firing error: ${err.message}`);
+    }
+  }
+
+  window.confirmSurrender = async function () {
+    if (!confirm("Are you sure you wish to surrender this naval battle?")) return;
+    try {
+      await apiFetch(`/api/matches/${activeMatchId}/surrender`, { method: "POST" });
+      refreshMatchState();
+    } catch (err) {
+      alert(`Surrender error: ${err.message}`);
+    }
+  };
+
+  // --- Stats Modal ---
+
+  window.openStatsModal = async function () {
+    const modal = document.getElementById("stats-modal");
+    const content = document.getElementById("stats-content");
+    modal.style.display = "flex";
+    content.innerHTML = "<div style='color:#94a3b8;'>Loading command record...</div>";
+
+    try {
+      const stats = await apiFetch("/api/me/stats");
+      content.innerHTML = `
+        <div style="background:#1e293b; padding:1rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.8rem; font-weight:bold; color:#38bdf8;">${stats.wins} - ${stats.losses}</div>
+          <small style="color:#94a3b8;">Record (W-L)</small>
+        </div>
+        <div style="background:#1e293b; padding:1rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.8rem; font-weight:bold; color:#22c55e;">${stats.win_rate}%</div>
+          <small style="color:#94a3b8;">Win Rate</small>
+        </div>
+        <div style="background:#1e293b; padding:1rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.8rem; font-weight:bold; color:#f59e0b;">${stats.hits} / ${stats.total_shots}</div>
+          <small style="color:#94a3b8;">Artillery Hits</small>
+        </div>
+        <div style="background:#1e293b; padding:1rem; border-radius:8px; text-align:center;">
+          <div style="font-size:1.8rem; font-weight:bold; color:#f87171;">${stats.accuracy_pct}%</div>
+          <small style="color:#94a3b8;">Accuracy</small>
+        </div>
+      `;
+    } catch (err) {
+      content.innerHTML = `<div style="color:#ef4444;">Error: ${err.message}</div>`;
+    }
+  };
+
+  window.closeStatsModal = function () {
+    document.getElementById("stats-modal").style.display = "none";
+  };
+
+  function setupKeybindings() {
+    window.addEventListener("keydown", (e) => {
+      if ((e.key === "r" || e.key === "R") && currentMatchData?.status === "setup") {
+        toggleOrientation();
+      }
+      if (e.key === "Escape") {
+        closeNewMatchModal();
+        closeStatsModal();
+      }
+    });
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // Boot
+  document.addEventListener("DOMContentLoaded", initApp);
+})();

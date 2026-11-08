@@ -1,0 +1,441 @@
+/* Ottomate Battleship Tactical Command Theme */
+
+:root {
+  --navy-bg: #070d19;
+  --panel-bg: rgba(15, 23, 42, 0.85);
+  --panel-border: rgba(56, 189, 248, 0.2);
+  --radar-cyan: #38bdf8;
+  --radar-glow: rgba(56, 189, 248, 0.35);
+  --water-blue: #0c213b;
+  --water-hover: #163863;
+  --hit-red: #ef4444;
+  --hit-glow: rgba(239, 68, 68, 0.45);
+  --miss-white: #cbd5e1;
+  --ship-steel: #334155;
+  --ship-active: #0284c7;
+  --ship-border: #38bdf8;
+  --sunk-dark: #1e1b4b;
+}
+
+body {
+  background-color: var(--navy-bg);
+  background-image: 
+    radial-gradient(circle at 50% 20%, rgba(2, 132, 199, 0.12) 0%, transparent 60%),
+    linear-gradient(rgba(15, 23, 42, 0.6) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.6) 1px, transparent 1px);
+  background-size: 100% 100%, 24px 24px, 24px 24px;
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+.battleship-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+/* Status Banner */
+.tactical-status-banner {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(56, 189, 248, 0.05);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status-indicator-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #64748b;
+  box-shadow: 0 0 8px rgba(100, 116, 139, 0.5);
+}
+
+.status-indicator-dot.active-turn {
+  background: #22c55e;
+  box-shadow: 0 0 12px #22c55e;
+  animation: pulse-turn 1.8s infinite;
+}
+
+.status-indicator-dot.waiting-turn {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+@keyframes pulse-turn {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.status-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: 0.02em;
+}
+
+.status-subtitle {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin-top: 0.15rem;
+}
+
+/* Dual Grids Battle Layout */
+.battle-theatre {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 900px) {
+  .battle-theatre {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tactical-grid-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.grid-card-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.grid-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.radar-title {
+  color: var(--radar-cyan);
+}
+
+.fleet-title {
+  color: #38bdf8;
+}
+
+.fleet-health-bar {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.ship-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+}
+
+.ship-badge.sunk {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #f87171;
+  text-decoration: line-through;
+}
+
+/* Grid Matrix */
+.grid-board-wrapper {
+  display: inline-block;
+  user-select: none;
+}
+
+.grid-board {
+  display: grid;
+  grid-template-columns: 24px repeat(10, 36px);
+  grid-template-rows: 24px repeat(10, 36px);
+  gap: 2px;
+  background: rgba(15, 23, 42, 0.9);
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 480px) {
+  .grid-board {
+    grid-template-columns: 20px repeat(10, 28px);
+    grid-template-rows: 20px repeat(10, 28px);
+    gap: 1px;
+    padding: 3px;
+  }
+}
+
+.grid-header-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
+}
+
+.grid-cell {
+  width: 100%;
+  height: 100%;
+  background: var(--water-blue);
+  border: 1px solid rgba(30, 58, 138, 0.4);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: bold;
+  position: relative;
+  transition: all 0.15s ease-in-out;
+}
+
+.grid-cell:hover:not(.hit):not(.miss):not(.disabled) {
+  background: var(--water-hover);
+  border-color: var(--radar-cyan);
+  box-shadow: 0 0 8px var(--radar-glow);
+}
+
+.grid-cell.disabled {
+  cursor: not-allowed;
+}
+
+/* Cell States */
+.grid-cell.ship {
+  background: #1e3a8a;
+  border: 1px solid #38bdf8;
+  color: #e0f2fe;
+}
+
+.grid-cell.ship-ghost {
+  background: rgba(56, 189, 248, 0.4) !important;
+  border-color: #38bdf8 !important;
+}
+
+.grid-cell.ship-ghost-invalid {
+  background: rgba(239, 68, 68, 0.4) !important;
+  border-color: #ef4444 !important;
+}
+
+.grid-cell.hit {
+  background: #7f1d1d;
+  border-color: var(--hit-red);
+  color: #ffffff;
+  box-shadow: 0 0 10px var(--hit-glow);
+  cursor: default;
+}
+
+.grid-cell.hit::after {
+  content: "💥";
+  font-size: 1rem;
+}
+
+.grid-cell.miss {
+  background: #0f172a;
+  border-color: rgba(148, 163, 184, 0.3);
+  color: var(--miss-white);
+  cursor: default;
+}
+
+.grid-cell.miss::after {
+  content: "•";
+  font-size: 1.4rem;
+  color: #94a3b8;
+}
+
+.grid-cell.sunk-ship {
+  background: #450a0a !important;
+  border-color: #f87171 !important;
+  box-shadow: 0 0 12px rgba(248, 113, 113, 0.5) !important;
+}
+
+/* Fleet Deployment Controls */
+.fleet-dock {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+  width: 100%;
+}
+
+.dock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.dock-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.dock-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.dock-ships-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.dock-ship-item {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.dock-ship-item:hover {
+  border-color: var(--radar-cyan);
+  background: rgba(30, 41, 59, 0.95);
+}
+
+.dock-ship-item.selected {
+  border-color: var(--radar-cyan);
+  background: rgba(2, 132, 199, 0.25);
+  box-shadow: 0 0 12px var(--radar-glow);
+}
+
+.dock-ship-item.placed {
+  opacity: 0.6;
+}
+
+.dock-ship-item.placed::after {
+  content: " ✓";
+  color: #22c55e;
+  font-weight: bold;
+}
+
+/* Tactical History Feed */
+.tactical-feed {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.feed-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.feed-entry {
+  font-size: 0.85rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.feed-entry:last-child {
+  border-bottom: none;
+}
+
+.feed-badge-hit {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.feed-badge-miss {
+  color: #94a3b8;
+}
+
+/* Modals & Lobby */
+.lobby-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.match-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.match-card {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.match-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--radar-cyan);
+}
+
+.match-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badge-status {
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-setup { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.badge-in_progress { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.badge-completed { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
