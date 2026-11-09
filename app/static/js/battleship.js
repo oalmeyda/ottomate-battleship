@@ -29,6 +29,17 @@
   async function initApp() {
     setupAuth();
     setupKeybindings();
+    setupModalBackdrops();
+  }
+
+  function setupModalBackdrops() {
+    document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          overlay.style.display = "none";
+        }
+      });
+    });
   }
 
   function setupAuth() {
