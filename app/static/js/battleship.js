@@ -945,22 +945,24 @@
           <tbody>
             ${list.map((r) => {
               const rankClass = r.rank <= 3 ? `rank-${r.rank}` : "";
-              const botBadge = r.is_bot ? `<span style="font-size:0.75rem; background:rgba(56,189,248,0.2); color:#38bdf8; padding:0.15rem 0.4rem; border-radius:4px; margin-left:0.35rem;">BOT</span>` : "";
+              const botBadge = r.is_bot ? `<span class="bot-pill">BOT</span>` : "";
               const isMe = currentUser && r.email === currentUser.email;
-              const rowStyle = isMe ? "background: rgba(2, 132, 199, 0.15);" : "";
+              const rowClass = isMe ? "current-user-row" : "";
               return `
-                <tr style="${rowStyle}">
+                <tr class="${rowClass}">
                   <td><span class="rank-badge ${rankClass}">#${r.rank}</span></td>
                   <td>
-                    <b>${escapeHtml(r.display_name)}</b>${botBadge}
-                    <div style="font-size:0.75rem; color:#64748b;">${escapeHtml(r.email)}</div>
+                    <div class="commander-name">
+                      <span>${escapeHtml(r.display_name)}</span>${botBadge}
+                    </div>
+                    <div class="commander-email">${escapeHtml(r.email)}</div>
                   </td>
-                  <td><b>${r.wins}</b> - ${r.losses}</td>
-                  <td style="color:${r.win_rate >= 50 ? "#22c55e" : "#cbd5e1"}; font-weight:600;">${r.win_rate}%</td>
-                  <td style="color:#f59e0b; font-weight:600;">${r.hit_pct}%</td>
-                  <td><span style="color:#22c55e;">${r.ships_sunk}</span> / <span style="color:#ef4444;">${r.ships_lost}</span></td>
-                  <td>${r.current_win_streak > 0 ? `🔥 ${r.current_win_streak}` : "—"}</td>
-                  <td>${r.flawless_victories > 0 ? `⭐ ${r.flawless_victories}` : "—"}</td>
+                  <td><b class="record-val">${r.wins}</b> - <span style="color:#cbd5e1;">${r.losses}</span></td>
+                  <td class="${r.win_rate >= 50 ? "win-rate-high" : "win-rate-normal"}">${r.win_rate}%</td>
+                  <td class="accuracy-val">${r.hit_pct}%</td>
+                  <td><span style="color:#4ade80; font-weight:700;">${r.ships_sunk}</span> <span style="color:#64748b;">/</span> <span style="color:#f87171; font-weight:700;">${r.ships_lost}</span></td>
+                  <td><span style="color:#f97316; font-weight:700;">${r.current_win_streak > 0 ? `🔥 ${r.current_win_streak}` : "—"}</span></td>
+                  <td><span style="color:#fbbf24; font-weight:700;">${r.flawless_victories > 0 ? `⭐ ${r.flawless_victories}` : "—"}</span></td>
                 </tr>
               `;
             }).join("")}
