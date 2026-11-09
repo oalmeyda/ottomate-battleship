@@ -363,10 +363,17 @@
         subtitle.textContent = "Both fleets deployed. Starting combat...";
       }
     } else if (match.status === "in_progress") {
+      const { lastShot } = getRecentOpponentShots(match);
       if (match.is_my_turn) {
         dot.className = "status-indicator-dot active-turn";
         title.textContent = "🎯 YOUR TURN TO FIRE!";
-        subtitle.textContent = "Click any coordinate on the Radar to launch an artillery strike. (Hits grant a bonus shot!)";
+        if (lastShot) {
+          const outcome = lastShot.result === "hit" ? "💥 HIT" : "💦 MISS";
+          const sunkDetail = lastShot.sunk ? ` (Sunk your ${lastShot.ship_name}!)` : "";
+          subtitle.innerHTML = `Incoming enemy strike landed at <b style="color: #fbbf24; text-decoration: underline;">${lastShot.coordinate}</b> [${outcome}${sunkDetail}]. Target coordinates acquired — launch your strike!`;
+        } else {
+          subtitle.textContent = "Click any coordinate on the Radar to launch an artillery strike. (Hits grant a bonus shot!)";
+        }
       } else {
         dot.className = "status-indicator-dot waiting-turn";
         title.textContent = "⏳ Enemy Admiral's Turn";
@@ -457,6 +464,37 @@
     }
   }
 
+  function getRecentOpponentShots(match) {
+    const history = match.history || [];
+    if (!history.length || !currentUser) return { lastShot: null, recentShots: [] };
+
+    // Find index of the last shot made by the current user
+    let lastPlayerShotIdx = -1;
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].player_email === currentUser.email) {
+        lastPlayerShotIdx = i;
+        break;
+      }
+    }
+
+    // Opponent shots taken since the current user's last action
+    const opponentRecentShots = history
+      .slice(lastPlayerShotIdx + 1)
+      .filter((h) => h.player_email !== currentUser.email);
+
+    let lastShot = null;
+    if (opponentRecentShots.length > 0) {
+      lastShot = opponentRecentShots[opponentRecentShots.length - 1];
+    } else {
+      const allOpponentShots = history.filter((h) => h.player_email !== currentUser.email);
+      if (allOpponentShots.length > 0) {
+        lastShot = allOpponentShots[allOpponentShots.length - 1];
+      }
+    }
+
+    return { lastShot, recentShots: opponentRecentShots };
+  }
+
   function renderFleetBoard(match) {
     const container = document.getElementById("fleet-board");
     if (!container.innerHTML) {
@@ -475,6 +513,20 @@
     });
 
     const isSetup = match.status === "setup";
+    const { lastShot, recentShots } = getRecentOpponentShots(match);
+    const recentCoords = new Set(recentShots.map((s) => s.coordinate));
+
+    // Update fleet header strike chip
+    const strikeBadge = document.getElementById("last-strike-badge");
+    if (strikeBadge) {
+      if (lastShot && !isSetup) {
+        strikeBadge.style.display = "inline-flex";
+        strikeBadge.className = `last-strike-chip ${lastShot.result === "hit" ? "hit" : ""}`;
+        strikeBadge.innerHTML = `${lastShot.result === "hit" ? "💥" : "💦"} Strike: <b>${lastShot.coordinate}</b> (${lastShot.result.toUpperCase()})`;
+      } else {
+        strikeBadge.style.display = "none";
+      }
+    }
 
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
@@ -498,6 +550,18 @@
           } else {
             cell.classList.add("miss");
           }
+        }
+
+        // Highlight latest and recent incoming enemy shots
+        if (lastShot && coord === lastShot.coordinate) {
+          cell.classList.add("last-incoming-shot");
+          if (lastShot.result === "hit") {
+            cell.classList.add("last-incoming-hit");
+          } else {
+            cell.classList.add("last-incoming-miss");
+          }
+        } else if (recentCoords.has(coord)) {
+          cell.classList.add("recent-incoming-shot");
         }
 
         if (isSetup) {
