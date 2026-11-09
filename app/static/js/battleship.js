@@ -1201,7 +1201,7 @@
         <table class="tactical-table">
           <thead>
             <tr>
-              <th style="width: 48px;">Rank</th>
+              <th style="width: 44px; text-align: center;">Rank</th>
               <th>Commander</th>
               <th>Record</th>
               <th>Win %</th>
@@ -1220,12 +1220,12 @@
               const rowClass = isMe ? "current-user-row" : "";
               return `
                 <tr class="${rowClass}">
-                  <td><span class="rank-badge ${rankClass}">#${r.rank}</span></td>
+                  <td style="text-align: center;"><span class="rank-badge ${rankClass}">#${r.rank}</span></td>
                   <td>
-                    <div class="commander-name">
+                    <div class="commander-name" title="${escapeHtml(r.display_name)}">
                       <span>${escapeHtml(r.display_name)}</span>${botBadge}
                     </div>
-                    <div class="commander-email">${escapeHtml(r.email)}</div>
+                    <div class="commander-email" title="${escapeHtml(r.email)}">${escapeHtml(r.email)}</div>
                   </td>
                   <td><b class="record-val">${r.wins}</b> - <span style="color:#cbd5e1;">${r.losses}</span></td>
                   <td class="${r.win_rate >= 50 ? "win-rate-high" : "win-rate-normal"}">${r.win_rate}%</td>

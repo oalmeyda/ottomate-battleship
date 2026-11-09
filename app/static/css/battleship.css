@@ -576,9 +576,10 @@ body {
 .tactical-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: #f1f5f9 !important;
   background: transparent !important;
+  table-layout: auto;
 }
 
 .tactical-table thead,
@@ -587,23 +588,36 @@ body {
 }
 
 .tactical-table th {
-  text-align: left;
-  padding: 0.75rem 0.85rem !important;
+  text-align: center;
+  padding: 0.65rem 0.55rem !important;
   background: #1e293b !important;
   color: #94a3b8 !important;
   border-bottom: 2px solid rgba(56, 189, 248, 0.3) !important;
   border-top: none !important;
   font-weight: 700 !important;
-  font-size: 0.75rem !important;
+  font-size: 0.72rem !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
+  letter-spacing: 0.04em !important;
+  white-space: nowrap;
+}
+
+.tactical-table th:first-child,
+.tactical-table th:nth-child(2) {
+  text-align: left;
 }
 
 .tactical-table td {
-  padding: 0.75rem 0.85rem !important;
+  padding: 0.6rem 0.55rem !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   color: #f8fafc !important;
   background: transparent !important;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.tactical-table td:first-child,
+.tactical-table td:nth-child(2) {
+  text-align: left;
 }
 
 .tactical-table tbody tr {
@@ -621,16 +635,30 @@ body {
 .tactical-table .commander-name {
   color: #f8fafc !important;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tactical-table .commander-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tactical-table .commander-email {
-  font-size: 0.775rem !important;
+  font-size: 0.75rem !important;
   color: #94a3b8 !important;
   margin-top: 0.15rem;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tactical-table .record-val {
@@ -662,6 +690,7 @@ body {
   border-radius: 4px;
   font-weight: 800;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 .rank-badge {
@@ -669,6 +698,7 @@ body {
   font-size: 0.95rem;
   display: inline-block;
   min-width: 28px;
+  text-align: center;
 }
 
 .rank-1 { color: #fbbf24 !important; text-shadow: 0 0 8px rgba(251, 191, 36, 0.5); }
