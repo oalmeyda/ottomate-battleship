@@ -325,8 +325,27 @@
     }
   }
 
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  let isAnimatingBotTurn = false;
+
+  function computeActiveStreak(history, playerEmail) {
+    if (!history || !history.length || !playerEmail) return { type: "none", count: 0 };
+    const playerShots = history.filter((h) => h.player_email === playerEmail);
+    if (!playerShots.length) return { type: "none", count: 0 };
+    const lastResult = playerShots[playerShots.length - 1].result; // "hit" or "miss"
+    let count = 0;
+    for (let i = playerShots.length - 1; i >= 0; i--) {
+      if (playerShots[i].result === lastResult) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return { type: lastResult, count };
+  }
+
   async function refreshMatchState() {
-    if (!activeMatchId) return;
+    if (!activeMatchId || isAnimatingBotTurn) return;
     try {
       const data = await apiFetch(`/api/matches/${activeMatchId}`);
       currentMatchData = data;
@@ -396,7 +415,38 @@
       actions.innerHTML = `
         <button class="btn btn-secondary" onclick="confirmSurrender()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">🏳️ Forfeit</button>
       `;
-    } else if (match.status === "completed") {
+
+      // Active in-match streaks
+      const playerStreak = computeActiveStreak(match.history || [], currentUser ? currentUser.email : "");
+      const oppEmail = match.my_role === "player1" ? (match.player2 ? match.player2.email : "") : (match.player1 ? match.player1.email : "");
+      const enemyStreak = computeActiveStreak(match.history || [], oppEmail);
+
+      const pBadge = document.getElementById("player-streak-badge");
+      if (pBadge) {
+        if (playerStreak.type === "hit" && playerStreak.count >= 1) {
+          pBadge.style.display = "inline-flex";
+          pBadge.textContent = playerStreak.count > 1 ? `🔥 Streak: ${playerStreak.count}` : `🎯 Direct Hit`;
+        } else {
+          pBadge.style.display = "none";
+        }
+      }
+
+      const eBadge = document.getElementById("enemy-streak-badge");
+      if (eBadge) {
+        if (enemyStreak.type === "hit" && enemyStreak.count >= 1) {
+          eBadge.style.display = "inline-flex";
+          eBadge.textContent = enemyStreak.count > 1 ? `⚠️ Enemy Streak: ${enemyStreak.count} 🔥` : `⚠️ Enemy Hit`;
+        } else {
+          eBadge.style.display = "none";
+        }
+      }
+    } else {
+      const pBadge = document.getElementById("player-streak-badge");
+      if (pBadge) pBadge.style.display = "none";
+      const eBadge = document.getElementById("enemy-streak-badge");
+      if (eBadge) eBadge.style.display = "none";
+
+      if (match.status === "completed") {
       const isWinner = match.winner_email === (currentUser && currentUser.email);
       dot.className = "status-indicator-dot";
       dot.style.background = isWinner ? "#22c55e" : "#ef4444";
@@ -416,6 +466,7 @@
         ${rematchBtnHtml}
         <button class="btn btn-secondary" onclick="showLobbyView()">⚓ Return to Lobby</button>
       `;
+    }
     }
   }
 
@@ -873,15 +924,143 @@
   // --- Firing Action ---
 
   async function handleFireShot(coord) {
-    if (!activeMatchId) return;
+    if (!activeMatchId || isAnimatingBotTurn) return;
     try {
+      isAnimatingBotTurn = true;
       const res = await apiFetch(`/api/matches/${activeMatchId}/fire`, {
         method: "POST",
         body: { coordinate: coord },
       });
-      refreshMatchState();
+      await processTurnAnimation(coord, res);
     } catch (err) {
       alert(`Firing error: ${err.message}`);
+    } finally {
+      isAnimatingBotTurn = false;
+      await refreshMatchState();
+    }
+  }
+
+  async function processTurnAnimation(playerCoord, res) {
+    if (!res || !res.shot) return;
+
+    // 1. Render the player's shot immediately on Radar board
+    const radarCell = document.getElementById(`radar-${playerCoord}`);
+    if (radarCell) {
+      radarCell.classList.add(res.shot.result);
+      radarCell.classList.add("incoming-shot-impact");
+      setTimeout(() => radarCell.classList.remove("incoming-shot-impact"), 600);
+    }
+
+    // Update player hit streak badge if hit
+    const playerBadge = document.getElementById("player-streak-badge");
+    if (res.shot.result === "hit") {
+      const pStreak = computeActiveStreak(res.history || [], currentUser ? currentUser.email : "");
+      if (playerBadge) {
+        playerBadge.style.display = "inline-flex";
+        playerBadge.textContent = pStreak.count > 1 ? `🔥 Streak: ${pStreak.count}!` : `🎯 Direct Hit`;
+      }
+      const title = document.getElementById("status-title");
+      const subtitle = document.getElementById("status-subtitle");
+      if (title && subtitle && res.status !== "completed") {
+        title.textContent = pStreak.count > 1 ? `🔥🔥 ${pStreak.count}-HIT STREAK!` : "🎯 DIRECT HIT!";
+        const sunkMsg = res.shot.sunk ? ` and SUNK the enemy ${res.shot.ship_name || "warship"}!` : "!";
+        subtitle.innerHTML = `You struck enemy waters at <b style="color: #22c55e;">${playerCoord}</b>${sunkMsg} Target locked in — fire your bonus shot!`;
+      }
+      await sleep(400);
+      return; // Player keeps turn!
+    }
+
+    // Player missed:
+    if (playerBadge) playerBadge.style.display = "none";
+
+    // 2. If bot responded with shots, play them out sequentially with pacing
+    const botShots = res.bot_shots || [];
+    if (botShots.length > 0) {
+      const title = document.getElementById("status-title");
+      const subtitle = document.getElementById("status-subtitle");
+      const dot = document.getElementById("turn-dot");
+      const enemyBadge = document.getElementById("enemy-streak-badge");
+
+      if (dot) dot.className = "status-indicator-dot waiting-turn";
+      if (title) title.textContent = "⏳ Enemy Admiral's Turn";
+      if (subtitle) subtitle.innerHTML = `Salvo missed at <b style="color:#94a3b8;">${playerCoord}</b>. Enemy Admiral acquiring firing solution...`;
+
+      await sleep(850);
+
+      let currentEnemyStreak = 0;
+
+      for (let i = 0; i < botShots.length; i++) {
+        const bShot = botShots[i];
+        const fleetCell = document.getElementById(`fleet-${bShot.coordinate}`);
+
+        // A. Aiming phase: crosshair on targeted cell
+        if (fleetCell) {
+          fleetCell.classList.add("incoming-target-aiming");
+        }
+        if (subtitle) {
+          subtitle.innerHTML = `Enemy targeting coordinates <b style="color:#f59e0b;">${bShot.coordinate}</b>...`;
+        }
+
+        await sleep(650);
+
+        // B. Impact phase: remove aiming, apply hit/miss
+        if (fleetCell) {
+          fleetCell.classList.remove("incoming-target-aiming");
+          fleetCell.classList.add("incoming-shot-impact");
+          fleetCell.classList.add(bShot.result);
+          setTimeout(() => fleetCell.classList.remove("incoming-shot-impact"), 600);
+        }
+
+        if (bShot.result === "hit") {
+          currentEnemyStreak++;
+          if (enemyBadge) {
+            enemyBadge.style.display = "inline-flex";
+            enemyBadge.textContent = currentEnemyStreak > 1
+              ? `⚠️ Enemy Streak: ${currentEnemyStreak} 🔥`
+              : `⚠️ Enemy Hit`;
+          }
+          if (title) {
+            title.textContent = currentEnemyStreak > 1
+              ? `💥 ENEMY HIT STREAK: ${currentEnemyStreak}!`
+              : `💥 ENEMY ARTILLERY HIT!`;
+          }
+          if (subtitle) {
+            const sunkText = bShot.sunk ? ` and <b style="color:#ef4444;">SUNK your ${bShot.ship_name || "warship"}</b>!` : "!";
+            subtitle.innerHTML = `Enemy struck your fleet at <b style="color:#ef4444;">${bShot.coordinate}</b>${sunkText} (🔥 ${currentEnemyStreak} in a row). Enemy fires bonus shot...`;
+          }
+
+          // Update last strike badge
+          const strikeBadge = document.getElementById("last-strike-badge");
+          if (strikeBadge) {
+            strikeBadge.style.display = "inline-flex";
+            strikeBadge.className = "last-strike-chip hit";
+            strikeBadge.innerHTML = `💥 Last: ${bShot.coordinate}`;
+          }
+
+          // PAUSE SLOWER when bot gets it right so player can clearly register the hit!
+          await sleep(bShot.sunk ? 1600 : 1350);
+        } else {
+          // Bot missed:
+          if (enemyBadge) {
+            enemyBadge.style.display = "none";
+          }
+          if (title) {
+            title.textContent = "🎯 YOUR TURN TO FIRE!";
+          }
+          if (subtitle) {
+            subtitle.innerHTML = `Enemy artillery missed at <b style="color:#38bdf8;">${bShot.coordinate}</b>! Enemy streak broken. Command is yours — launch strike!`;
+          }
+
+          const strikeBadge = document.getElementById("last-strike-badge");
+          if (strikeBadge) {
+            strikeBadge.style.display = "inline-flex";
+            strikeBadge.className = "last-strike-chip";
+            strikeBadge.innerHTML = `💦 Last: ${bShot.coordinate}`;
+          }
+
+          await sleep(800);
+        }
+      }
     }
   }
 
@@ -948,9 +1127,17 @@
           <div style="font-size:1.6rem; font-weight:bold; color:#f87171;">${stats.ships_sunk} / ${stats.ships_lost}</div>
           <small style="color:#94a3b8;">Sunk / Lost</small>
         </div>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center; border: 1px solid rgba(245, 158, 11, 0.3);">
+          <div style="font-size:1.6rem; font-weight:bold; color:#fbbf24;">${stats.current_hit_streak || 0} <span style="font-size:0.9rem; color:#94a3b8;">(Max: ${stats.longest_hit_streak || 0})</span></div>
+          <small style="color:#f59e0b;">🔥 Correct Hit Streak</small>
+        </div>
+        <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center; border: 1px solid rgba(56, 189, 248, 0.2);">
+          <div style="font-size:1.6rem; font-weight:bold; color:#38bdf8;">${stats.current_miss_streak || 0} <span style="font-size:0.9rem; color:#94a3b8;">(Longest: ${stats.longest_miss_streak || 0})</span></div>
+          <small style="color:#94a3b8;">❄️ Miss (Cold) Streak</small>
+        </div>
         <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
-          <div style="font-size:1.6rem; font-weight:bold; color:#a855f7;">${stats.current_win_streak} <span style="font-size:0.9rem; color:#94a3b8;">(Best: ${stats.max_win_streak})</span></div>
-          <small style="color:#94a3b8;">🔥 Win Streak</small>
+          <div style="font-size:1.6rem; font-weight:bold; color:#a855f7;">${stats.current_win_streak || 0} <span style="font-size:0.9rem; color:#94a3b8;">(Best: ${stats.max_win_streak || 0})</span></div>
+          <small style="color:#94a3b8;">🏆 Match Win Streak</small>
         </div>
         <div style="background:#1e293b; padding:0.85rem; border-radius:8px; text-align:center;">
           <div style="font-size:1.6rem; font-weight:bold; color:#38bdf8;">${rankText}</div>
@@ -1020,7 +1207,8 @@
               <th>Win %</th>
               <th>Hit %</th>
               <th>Sunk / Lost</th>
-              <th>Streak</th>
+              <th>Hit Streak</th>
+              <th>Win Streak</th>
               <th>Flawless</th>
             </tr>
           </thead>
@@ -1043,7 +1231,8 @@
                   <td class="${r.win_rate >= 50 ? "win-rate-high" : "win-rate-normal"}">${r.win_rate}%</td>
                   <td class="accuracy-val">${r.hit_pct}%</td>
                   <td><span style="color:#4ade80; font-weight:700;">${r.ships_sunk}</span> <span style="color:#64748b;">/</span> <span style="color:#f87171; font-weight:700;">${r.ships_lost}</span></td>
-                  <td><span style="color:#f97316; font-weight:700;">${r.current_win_streak > 0 ? `🔥 ${r.current_win_streak}` : "—"}</span></td>
+                  <td><span style="color:#f59e0b; font-weight:700;">${r.longest_hit_streak > 0 ? `🔥 ${r.current_hit_streak || 0} <span style="font-size:0.75rem; color:#94a3b8;">(max ${r.longest_hit_streak})</span>` : "—"}</span></td>
+                  <td><span style="color:#a855f7; font-weight:700;">${r.max_win_streak > 0 ? `🏆 ${r.current_win_streak || 0} <span style="font-size:0.75rem; color:#94a3b8;">(max ${r.max_win_streak})</span>` : "—"}</span></td>
                   <td><span style="color:#fbbf24; font-weight:700;">${r.flawless_victories > 0 ? `⭐ ${r.flawless_victories}` : "—"}</span></td>
                 </tr>
               `;

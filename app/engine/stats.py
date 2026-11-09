@@ -46,6 +46,7 @@ def compute_leaderboard_and_stats(
 
     player_records: dict[str, dict[str, Any]] = {}
     player_outcomes: dict[str, list[bool]] = {}
+    player_shot_outcomes: dict[str, list[bool]] = {}
     winning_shots_counts: dict[str, list[int]] = {}
 
     def _ensure_player(email: str, name: str | None = None) -> dict[str, Any]:
@@ -69,8 +70,13 @@ def compute_leaderboard_and_stats(
                 "avg_shots_to_win": 0.0,
                 "current_win_streak": 0,
                 "max_win_streak": 0,
+                "current_hit_streak": 0,
+                "longest_hit_streak": 0,
+                "current_miss_streak": 0,
+                "longest_miss_streak": 0,
             }
             player_outcomes[norm] = []
+            player_shot_outcomes[norm] = []
             winning_shots_counts[norm] = []
         return player_records[norm]
 
@@ -125,10 +131,12 @@ def compute_leaderboard_and_stats(
 
         for shot in m.get("history", []):
             shooter = normalize_email(shot.get("player_email", ""))
+            is_hit = shot.get("result") == "hit"
             if shooter == p1:
                 p1_match_shots += 1
                 p1_stats["total_shots"] += 1
-                if shot.get("result") == "hit":
+                player_shot_outcomes[p1].append(is_hit)
+                if is_hit:
                     p1_stats["hits"] += 1
                 else:
                     p1_stats["misses"] += 1
@@ -137,7 +145,8 @@ def compute_leaderboard_and_stats(
             elif shooter == p2:
                 p2_match_shots += 1
                 p2_stats["total_shots"] += 1
-                if shot.get("result") == "hit":
+                player_shot_outcomes[p2].append(is_hit)
+                if is_hit:
                     p2_stats["hits"] += 1
                 else:
                     p2_stats["misses"] += 1
@@ -169,11 +178,23 @@ def compute_leaderboard_and_stats(
         if wins_shots:
             rec["avg_shots_to_win"] = round(sum(wins_shots) / len(wins_shots), 1)
 
-        # Streaks
+        # Match Win Streaks
         outcomes = player_outcomes.get(email, [])
         streak_info = StreakTracker.compute_streak(outcomes)
         rec["current_win_streak"] = streak_info["count"] if streak_info["type"] == "W" else 0
         rec["max_win_streak"] = StreakTracker.compute_best_win_streak(outcomes)
+
+        # Artillery Hit & Miss Streaks (Correct & Incorrect)
+        shots = player_shot_outcomes.get(email, [])
+        if shots:
+            hit_streak_info = StreakTracker.compute_streak(shots, win_label="hit", loss_label="miss")
+            rec["current_hit_streak"] = hit_streak_info["count"] if hit_streak_info["type"] == "hit" else 0
+            rec["longest_hit_streak"] = StreakTracker.compute_best_win_streak(shots)
+
+            misses = [not s for s in shots]
+            miss_streak_info = StreakTracker.compute_streak(misses, win_label="miss", loss_label="hit")
+            rec["current_miss_streak"] = miss_streak_info["count"] if miss_streak_info["type"] == "miss" else 0
+            rec["longest_miss_streak"] = StreakTracker.compute_best_win_streak(misses)
 
     # Sort leaderboard: Wins desc, Win Rate desc, Hit % desc, Ships Sunk desc
     leaderboard = list(player_records.values())

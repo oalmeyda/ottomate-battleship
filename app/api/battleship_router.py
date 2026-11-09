@@ -496,6 +496,7 @@ def fire_shot(
     match["history"].append(log_entry)
 
     # Turn logic & Victory
+    bot_shots: list[dict[str, Any]] = []
     if shot_res.game_over:
         match["status"] = "completed"
         match["winner_email"] = effective_player
@@ -512,7 +513,7 @@ def fire_shot(
 
         # If opponent is a bot, execute bot turns until miss or victory!
         if match["turn_player"] and is_bot_email(match["turn_player"]):
-            _run_bot_turns_if_active(match)
+            bot_shots = _run_bot_turns_if_active(match)
 
     _save_match(match)
 
@@ -522,6 +523,7 @@ def fire_shot(
         "status": match["status"],
         "winner_email": match.get("winner_email"),
         "history": match.get("history", []),
+        "bot_shots": bot_shots,
     }
 
 
@@ -721,6 +723,10 @@ def get_user_stats(
             "avg_shots_to_win": 0.0,
             "current_win_streak": 0,
             "max_win_streak": 0,
+            "current_hit_streak": 0,
+            "longest_hit_streak": 0,
+            "current_miss_streak": 0,
+            "longest_miss_streak": 0,
             "rank": None,
         }
     else:

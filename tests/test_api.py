@@ -34,6 +34,39 @@ def test_create_pve_match(client):
     assert match["player2_ready"] is True  # Bot is pre-deployed
     assert match["status"] == "setup"
 
+    # Deploy Alice fleet to transition to in_progress
+    match_id = match["id"]
+    fleet = [
+        {"ship_id": "carrier", "row": 0, "col": 0, "orientation": "horizontal"},
+        {"ship_id": "battleship", "row": 1, "col": 0, "orientation": "horizontal"},
+        {"ship_id": "cruiser", "row": 2, "col": 0, "orientation": "horizontal"},
+        {"ship_id": "submarine", "row": 3, "col": 0, "orientation": "horizontal"},
+        {"ship_id": "destroyer", "row": 4, "col": 0, "orientation": "horizontal"},
+    ]
+    deploy_res = client.post(
+        f"/api/matches/{match_id}/deploy",
+        headers=auth_headers("alice@example.com"),
+        json={"ships": fleet},
+    )
+    assert deploy_res.status_code == 200
+    assert deploy_res.json()["status"] == "in_progress"
+
+    # Alice fires a shot at J10
+    fire_res = client.post(
+        f"/api/matches/{match_id}/fire",
+        headers=auth_headers("alice@example.com"),
+        json={"coordinate": "J10"},
+    )
+    assert fire_res.status_code == 200
+    fire_data = fire_res.json()
+    assert "shot" in fire_data
+    assert "bot_shots" in fire_data
+    if fire_data["shot"]["result"] == "miss":
+        assert len(fire_data["bot_shots"]) >= 1
+        for b_shot in fire_data["bot_shots"]:
+            assert "coordinate" in b_shot
+            assert "result" in b_shot
+
 
 def test_pvp_match_lifecycle_and_fog_of_war(client):
     # 1. Alice creates PvP match

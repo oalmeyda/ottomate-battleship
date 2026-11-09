@@ -123,3 +123,43 @@ def test_bot_shot_selection():
     # Easy bot picks any unfired
     easy_shot = decide_bot_shot(shots_received, sunk_ships, difficulty="easy")
     assert easy_shot != "A1"
+
+
+def test_shot_streaks_calculation(monkeypatch):
+    from ottomate_core.testing import FakeDatabase, use_users_database
+    use_users_database(monkeypatch, FakeDatabase(id_prefix="users"))
+    from app.engine.stats import compute_leaderboard_and_stats
+
+    # Match where human hits 3 times in a row, misses once, hits once
+    mock_match = {
+        "id": "m1",
+        "status": "completed",
+        "winner_email": "ace@example.com",
+        "player1_email": "ace@example.com",
+        "player2_email": "target@example.com",
+        "mode": "pvp",
+        "completed_at": "2026-11-09T00:00:00Z",
+        "history": [
+            {"player_email": "ace@example.com", "result": "hit", "sunk": False},
+            {"player_email": "ace@example.com", "result": "hit", "sunk": False},
+            {"player_email": "ace@example.com", "result": "hit", "sunk": False},
+            {"player_email": "ace@example.com", "result": "miss", "sunk": False},
+            {"player_email": "target@example.com", "result": "miss", "sunk": False},
+            {"player_email": "ace@example.com", "result": "hit", "sunk": True},
+        ],
+        "player1_board": {"sunk_ships": []},
+        "player2_board": {"sunk_ships": ["destroyer"]},
+    }
+
+    lb, stats_map = compute_leaderboard_and_stats([mock_match], scope="all")
+    ace_stats = stats_map["ace@example.com"]
+    assert ace_stats["longest_hit_streak"] == 3
+    assert ace_stats["current_hit_streak"] == 1
+    assert ace_stats["longest_miss_streak"] == 1
+    assert ace_stats["current_miss_streak"] == 0
+
+    target_stats = stats_map["target@example.com"]
+    assert target_stats["longest_hit_streak"] == 0
+    assert target_stats["current_hit_streak"] == 0
+    assert target_stats["longest_miss_streak"] == 1
+    assert target_stats["current_miss_streak"] == 1
