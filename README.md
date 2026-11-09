@@ -14,7 +14,11 @@ Ottomate Battleship is a classic 1v1 turn-based naval strategy game in the Ottom
 - **Server-Side Fog of War**: Opponent ship positions are strictly masked on the server until hit or completely destroyed, preventing network inspection cheating.
 - **PvP & PvE Modes**: Challenge other players via private match invites or practice solo against AI Bot commanders (Easy, Medium, Hard).
 - **3-Tier RBAC & Proxy Delegation**: Built upon `ottomate-core`'s 3-tier access control and proxy play capabilities.
+- **Leaderboards & Tactical Statistics**: Scoped leaderboards (Overall vs. Humans Only) tracking record, win rate %, artillery accuracy %, ships sunk/lost, current/longest hit and miss streaks, win streaks, and flawless victories.
+- **Paced AI & Tactical Visuals**: Real-time hit streak chips (`🔥 N Streak`), last strike markers (`💥 Hit: D4` / `💦 Miss: E4`), aiming crosshairs, and human-paced bot decision delays.
+- **Instant Rematch**: One-click rematch functionality for players and game admins immediately upon match conclusion.
 - **Responsive Tactical UI**: Dual-grid layout featuring "Your Fleet" and "Target Radar", drag-and-drop or 1-click randomized fleet deployment, and scale-to-zero short polling.
+- **Production Deployment**: Hosted serverless on GCP Cloud Run at [https://ottomate-battleship.web.app](https://ottomate-battleship.web.app).
 
 ---
 
