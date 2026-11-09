@@ -425,7 +425,7 @@
       if (pBadge) {
         if (playerStreak.type === "hit" && playerStreak.count >= 1) {
           pBadge.style.display = "inline-flex";
-          pBadge.textContent = playerStreak.count > 1 ? `🔥 Streak: ${playerStreak.count}` : `🎯 Direct Hit`;
+          pBadge.textContent = playerStreak.count > 1 ? `🔥 ${playerStreak.count} Streak` : `🎯 Direct Hit`;
         } else {
           pBadge.style.display = "none";
         }
@@ -435,7 +435,7 @@
       if (eBadge) {
         if (enemyStreak.type === "hit" && enemyStreak.count >= 1) {
           eBadge.style.display = "inline-flex";
-          eBadge.textContent = enemyStreak.count > 1 ? `⚠️ Enemy Streak: ${enemyStreak.count} 🔥` : `⚠️ Enemy Hit`;
+          eBadge.textContent = enemyStreak.count > 1 ? `⚠️ ${enemyStreak.count} Streak 🔥` : `⚠️ Enemy Hit`;
         } else {
           eBadge.style.display = "none";
         }
@@ -644,7 +644,7 @@
       if (lastShot && !isSetup) {
         strikeBadge.style.display = "inline-flex";
         strikeBadge.className = `last-strike-chip ${lastShot.result === "hit" ? "hit" : ""}`;
-        strikeBadge.innerHTML = `${lastShot.result === "hit" ? "💥" : "💦"} Strike: <b>${lastShot.coordinate}</b> (${lastShot.result.toUpperCase()})`;
+        strikeBadge.innerHTML = `${lastShot.result === "hit" ? "💥 Hit" : "💦 Miss"}: <b>${lastShot.coordinate}</b>`;
       } else {
         strikeBadge.style.display = "none";
       }
@@ -957,7 +957,7 @@
       const pStreak = computeActiveStreak(res.history || [], currentUser ? currentUser.email : "");
       if (playerBadge) {
         playerBadge.style.display = "inline-flex";
-        playerBadge.textContent = pStreak.count > 1 ? `🔥 Streak: ${pStreak.count}!` : `🎯 Direct Hit`;
+        playerBadge.textContent = pStreak.count > 1 ? `🔥 ${pStreak.count} Streak` : `🎯 Direct Hit`;
       }
       const title = document.getElementById("status-title");
       const subtitle = document.getElementById("status-subtitle");
@@ -1016,7 +1016,7 @@
           if (enemyBadge) {
             enemyBadge.style.display = "inline-flex";
             enemyBadge.textContent = currentEnemyStreak > 1
-              ? `⚠️ Enemy Streak: ${currentEnemyStreak} 🔥`
+              ? `⚠️ ${currentEnemyStreak} Streak 🔥`
               : `⚠️ Enemy Hit`;
           }
           if (title) {
@@ -1034,7 +1034,7 @@
           if (strikeBadge) {
             strikeBadge.style.display = "inline-flex";
             strikeBadge.className = "last-strike-chip hit";
-            strikeBadge.innerHTML = `💥 Last: ${bShot.coordinate}`;
+            strikeBadge.innerHTML = `💥 Hit: <b>${bShot.coordinate}</b>`;
           }
 
           // PAUSE SLOWER when bot gets it right so player can clearly register the hit!
@@ -1055,7 +1055,7 @@
           if (strikeBadge) {
             strikeBadge.style.display = "inline-flex";
             strikeBadge.className = "last-strike-chip";
-            strikeBadge.innerHTML = `💦 Last: ${bShot.coordinate}`;
+            strikeBadge.innerHTML = `💦 Miss: <b>${bShot.coordinate}</b>`;
           }
 
           await sleep(800);

@@ -124,21 +124,58 @@ body {
 .grid-card-header {
   width: 100%;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.grid-header-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 28px;
+}
+
+.grid-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.grid-fleet-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 28px;
+}
+
+.fleet-health-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .grid-card-title {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .radar-title {
@@ -152,6 +189,9 @@ body {
 .fleet-health-bar {
   display: flex;
   gap: 0.35rem;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .ship-badge {
@@ -162,6 +202,9 @@ body {
   background: rgba(30, 41, 59, 0.8);
   border: 1px solid rgba(148, 163, 184, 0.2);
   color: #cbd5e1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease-in-out;
 }
 
 .ship-badge.sunk {
@@ -721,14 +764,15 @@ body {
   font-weight: 600;
   padding: 0.2rem 0.55rem;
   border-radius: 6px;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
-  margin-left: 0.5rem;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #7dd3fc;
   letter-spacing: 0.02em;
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .last-strike-chip.hit {
@@ -801,34 +845,36 @@ body {
 .grid-streak-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem 0.65rem;
-  border-radius: 9999px;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  background: rgba(245, 158, 11, 0.2);
-  border: 1px solid rgba(245, 158, 11, 0.5);
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.45);
   color: #fbbf24;
-  margin-left: 0.5rem;
-  animation: pulseStreak 1.2s infinite ease-in-out;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+  animation: pulseStreak 1.8s infinite ease-in-out;
 }
 
 .grid-streak-badge.enemy-streak {
-  background: rgba(239, 68, 68, 0.25);
-  border-color: rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
   color: #fca5a5;
-  box-shadow: 0 0 14px rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
 }
 
 @keyframes pulseStreak {
   0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 6px rgba(245, 158, 11, 0.3);
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.4);
   }
   50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 16px rgba(245, 158, 11, 0.6);
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+    border-color: rgba(245, 158, 11, 0.7);
   }
 }
 
