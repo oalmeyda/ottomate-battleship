@@ -216,10 +216,17 @@
         const oppName = isP1 ? (m.player2_name || "Waiting for opponent...") : (m.player1_name || m.player1_email);
         const statusBadge = `<span class="badge-status badge-${m.status}">${m.status.toUpperCase()}</span>`;
         let turnText = "";
+        let rematchActionHtml = "";
+
         if (m.status === "in_progress") {
           turnText = m.turn_player === currentUser.email ? "🟢 Your Turn" : "⏳ Opponent's Turn";
         } else if (m.status === "completed") {
           turnText = m.winner_email === currentUser.email ? "🏆 Victory" : "💥 Defeated";
+          if (m.rematch_match_id) {
+            rematchActionHtml = `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); openMatch('${m.rematch_match_id}')" style="background:#22c55e; border-color:#22c55e; padding: 0.25rem 0.65rem; font-size: 0.75rem; font-weight:700;">🚀 Re-match Ready</button>`;
+          } else if (m.can_rematch) {
+            rematchActionHtml = `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); handleRematch('${m.id}')" style="background:#22c55e; border-color:#22c55e; padding: 0.25rem 0.65rem; font-size: 0.75rem; font-weight:700;">🔄 Re-match</button>`;
+          }
         } else {
           turnText = "🛠️ Setup Phase";
         }
@@ -233,9 +240,12 @@
             <div style="font-size: 0.85rem; color: #94a3b8;">
               Opponent: <b style="color: #cbd5e1;">${escapeHtml(oppName)}</b>
             </div>
-            <div style="font-size: 0.8rem; margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 0.8rem; margin-top: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
               <span style="font-weight: 600; color: #38bdf8;">${turnText}</span>
-              <span style="color: #64748b;">${m.mode === "pve" ? "🤖 AI" : "👥 PvP"}</span>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                ${rematchActionHtml}
+                <span style="color: #64748b;">${m.mode === "pve" ? "🤖 AI" : "👥 PvP"}</span>
+              </div>
             </div>
           </div>
         `;
@@ -339,6 +349,8 @@
     } else {
       dock.style.display = "none";
     }
+
+    renderCompletedCard(match);
   }
 
   function renderStatusBanner(match) {
@@ -385,7 +397,7 @@
         <button class="btn btn-secondary" onclick="confirmSurrender()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">🏳️ Forfeit</button>
       `;
     } else if (match.status === "completed") {
-      const isWinner = match.winner_email === currentUser.email;
+      const isWinner = match.winner_email === (currentUser && currentUser.email);
       dot.className = "status-indicator-dot";
       dot.style.background = isWinner ? "#22c55e" : "#ef4444";
       title.textContent = isWinner ? "🏆 NAVAL VICTORY!" : "💥 FLEET DESTROYED";
@@ -395,14 +407,65 @@
 
       let rematchBtnHtml = "";
       if (match.rematch_match_id) {
-        rematchBtnHtml = `<button class="btn btn-primary" onclick="openMatch('${match.rematch_match_id}')" style="background:#22c55e; border-color:#22c55e;">🚀 Go to Re-match</button>`;
+        rematchBtnHtml = `<button class="btn btn-primary" onclick="openMatch('${match.rematch_match_id}')" style="background:#22c55e; border-color:#22c55e; font-weight:750; box-shadow: 0 0 15px rgba(34,197,94,0.4);">🚀 Go to Re-match</button>`;
       } else if (match.can_rematch) {
-        rematchBtnHtml = `<button class="btn btn-primary" onclick="handleRematch('${match.id}')" style="background:#22c55e; border-color:#22c55e;">🔄 Re-match</button>`;
+        rematchBtnHtml = `<button class="btn btn-primary" onclick="handleRematch('${match.id}')" style="background:#22c55e; border-color:#22c55e; font-weight:750; box-shadow: 0 0 15px rgba(34,197,94,0.4);">🔄 Re-match</button>`;
       }
 
       actions.innerHTML = `
         ${rematchBtnHtml}
         <button class="btn btn-secondary" onclick="showLobbyView()">⚓ Return to Lobby</button>
+      `;
+    }
+  }
+
+  function renderCompletedCard(match) {
+    const card = document.getElementById("completed-match-card");
+    if (!card) return;
+
+    if (match.status !== "completed") {
+      card.style.display = "none";
+      return;
+    }
+
+    card.style.display = "block";
+    const isWinner = match.winner_email === (currentUser && currentUser.email);
+    card.className = `completed-match-card ${isWinner ? "victory" : "defeat"}`;
+
+    const badge = document.getElementById("completed-result-badge");
+    const title = document.getElementById("completed-result-title");
+    const desc = document.getElementById("completed-result-desc");
+    const actions = document.getElementById("completed-result-actions");
+
+    if (badge) {
+      badge.className = `completed-card-badge ${isWinner ? "victory" : "defeat"}`;
+      badge.textContent = isWinner ? "🏆 NAVAL VICTORY" : "💥 FLEET SUNK";
+    }
+
+    if (title) {
+      title.textContent = isWinner
+        ? "All Hostile Warships Sent to the Ocean Floor!"
+        : "Your Entire Fleet Has Been Sunk";
+    }
+
+    const totalRounds = match.history ? match.history.length : 0;
+    if (desc) {
+      desc.textContent = isWinner
+        ? `Command mastery confirmed! Engagement resolved in ${totalRounds} tactical artillery strikes.`
+        : `Tactical defeat recorded after ${totalRounds} incoming strikes. Regroup and fight again!`;
+    }
+
+    let rematchBtnHtml = "";
+    if (match.rematch_match_id) {
+      rematchBtnHtml = `<button class="btn btn-primary" onclick="openMatch('${match.rematch_match_id}')" style="background:#22c55e; border-color:#22c55e; font-weight:750; padding:0.6rem 1.4rem; font-size:1rem; box-shadow: 0 0 15px rgba(34,197,94,0.4);">🚀 Go to Re-match</button>`;
+    } else if (match.can_rematch) {
+      rematchBtnHtml = `<button class="btn btn-primary" onclick="handleRematch('${match.id}')" style="background:#22c55e; border-color:#22c55e; font-weight:750; padding:0.6rem 1.4rem; font-size:1rem; box-shadow: 0 0 15px rgba(34,197,94,0.4);">🔄 Re-match</button>`;
+    }
+
+    if (actions) {
+      actions.innerHTML = `
+        ${rematchBtnHtml}
+        <button class="btn btn-secondary" onclick="showLobbyView()" style="padding:0.6rem 1.2rem; font-size:1rem;">⚓ Return to Lobby</button>
       `;
     }
   }

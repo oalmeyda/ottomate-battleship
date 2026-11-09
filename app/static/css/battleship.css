@@ -736,3 +736,63 @@ body {
   border-color: rgba(239, 68, 68, 0.4);
   color: #f87171;
 }
+
+/* Completed Match Briefing Card */
+.completed-match-card {
+  background: var(--panel-bg);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(34, 197, 94, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.completed-match-card.defeat {
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(239, 68, 68, 0.1);
+}
+
+.completed-card-badge {
+  display: inline-block;
+  padding: 0.35rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.completed-card-badge.victory {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.completed-card-badge.defeat {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.completed-card-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #f8fafc;
+  margin-bottom: 0.5rem;
+}
+
+.completed-card-desc {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  margin-bottom: 1.25rem;
+}
+
+.completed-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}

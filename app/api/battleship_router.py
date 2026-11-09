@@ -21,7 +21,7 @@ from ottomate_core.deps import (
     is_super_admin,
 )
 
-from app.config import SERVICE_NAME
+from app.config import SERVICE_NAME, dev_mode_enabled
 from app.engine.bot import (
     BOT_PROFILES,
     decide_bot_shot,
@@ -75,6 +75,20 @@ def _get_match_or_404(match_id: str) -> dict[str, Any]:
     data = doc.to_dict() or {}
     data["id"] = doc.id
     return data
+
+
+def _is_admin(user: User, match: dict[str, Any] | None = None) -> bool:
+    """Checks if the user has platform super admin, game admin, session admin, or local dev admin privileges."""
+    if dev_mode_enabled() and (
+        user.email in ("dev@example.com", "organizer@example.com")
+        or user.email.startswith("dev:")
+    ):
+        return True
+    if is_super_admin(user) or is_game_admin(user, SERVICE_NAME):
+        return True
+    if match and is_session_admin(user, match, SERVICE_NAME):
+        return True
+    return False
 
 
 def _save_match(match_data: dict[str, Any]) -> None:
@@ -143,7 +157,7 @@ def list_matches(
     """Lists matches for the current user, open lobby matches, or all matches for admins."""
     db = database()
     user_email = normalize_email(user.email)
-    admin = is_super_admin(user) or is_game_admin(user, SERVICE_NAME)
+    admin = _is_admin(user)
 
     docs = db.collection(MATCHES_COLLECTION).stream()
     matches: list[dict[str, Any]] = []
@@ -158,6 +172,7 @@ def list_matches(
         if admin or p1 == user_email or p2 == user_email or (p2 is None and m.get("status") == "setup"):
             if status_filter and m.get("status") != status_filter:
                 continue
+            m["can_rematch"] = _is_admin(user, m)
             matches.append(m)
             if p1:
                 participant_emails.add(p1)
@@ -245,11 +260,7 @@ def get_match(
 
     p1 = match.get("player1_email")
     p2 = match.get("player2_email")
-    is_admin = (
-        is_super_admin(user)
-        or is_game_admin(user, SERVICE_NAME)
-        or is_session_admin(user, match, SERVICE_NAME)
-    )
+    is_admin = _is_admin(user, match)
 
     # Check participation or proxy
     is_p1 = (p1 == user_email) or can_act_as_proxy(user_email, p1 or "")
@@ -586,13 +597,8 @@ def create_rematch(
             detail="A rematch can only be created once the match is completed.",
         )
 
-    # Permission check: admin or super admin of the game (or session admin)
-    has_permission = (
-        is_super_admin(user)
-        or is_game_admin(user, SERVICE_NAME)
-        or is_session_admin(user, match, SERVICE_NAME)
-    )
-    if not has_permission:
+    # Permission check: admin or super admin of the game (or session admin, or dev mode)
+    if not _is_admin(user, match):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: Admin or Super Admin privileges required to initiate a rematch.",
