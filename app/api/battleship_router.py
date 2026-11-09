@@ -327,6 +327,8 @@ def get_match(
         "winner_email": match.get("winner_email"),
         "winner_name": match.get("winner_name"),
         "completed_at": match.get("completed_at"),
+        "rematch_match_id": match.get("rematch_match_id"),
+        "can_rematch": is_admin,
     }
 
 
@@ -569,6 +571,100 @@ def delete_match(
     db = database()
     db.collection(MATCHES_COLLECTION).document(match_id).delete()
     return {"message": f"Match '{match_id}' deleted successfully"}
+
+
+@router.post("/matches/{match_id}/rematch")
+def create_rematch(
+    match_id: str,
+    user: User = Depends(get_authenticated_user),
+) -> dict[str, Any]:
+    """Creates a rematch from a completed match with the same players and configuration."""
+    match = _get_match_or_404(match_id)
+    if match.get("status") != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A rematch can only be created once the match is completed.",
+        )
+
+    # Permission check: admin or super admin of the game (or session admin)
+    has_permission = (
+        is_super_admin(user)
+        or is_game_admin(user, SERVICE_NAME)
+        or is_session_admin(user, match, SERVICE_NAME)
+    )
+    if not has_permission:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin or Super Admin privileges required to initiate a rematch.",
+        )
+
+    # If rematch already exists, return it idempotently
+    if match.get("rematch_match_id"):
+        return {
+            "rematch_match_id": match["rematch_match_id"],
+            "status": "setup",
+        }
+
+    new_id = f"btl_{uuid.uuid4().hex[:12]}"
+    now = _now_iso()
+    user_email = normalize_email(user.email)
+
+    p1 = match["player1_email"]
+    p2 = match.get("player2_email")
+    mode = match.get("mode", "pve")
+    difficulty = match.get("bot_difficulty", "medium")
+
+    # Generate title
+    prev_title = match.get("title", "Battleship Duel")
+    if " (Rematch" in prev_title:
+        base_title = prev_title.split(" (Rematch")[0]
+        rematch_title = f"{base_title} (Rematch)"
+    else:
+        rematch_title = f"{prev_title} (Rematch)"
+
+    names = resolve_user_display_names([p1, p2] if p2 else [p1])
+
+    new_match = BattleshipMatch(
+        id=new_id,
+        title=rematch_title,
+        mode=mode,
+        bot_difficulty=difficulty if mode == "pve" else None,
+        player1_email=p1,
+        player1_name=match.get("player1_name") or names.get(p1, p1),
+        player1_ready=False,
+        player1_board={},
+        player2_email=p2,
+        player2_name=match.get("player2_name") or (names.get(p2, p2) if p2 else None),
+        player2_ready=False,
+        player2_board={},
+        status="setup",
+        created_by=user_email,
+        created_by_name=user.display_name or user_email,
+        admins=list(set(match.get("admins", []) + [user_email])),
+        created_at=now,
+        updated_at=now,
+    )
+
+    if mode == "pve" and p2:
+        # Pre-deploy bot fleet for PvE rematch
+        bot_fleet = generate_random_fleet()
+        bot_coords_map = validate_fleet_placement(bot_fleet)
+        bot_board = BoardState(player_email=p2, ships=bot_coords_map)
+        new_match.player2_ready = True
+        new_match.player2_board = bot_board.model_dump()
+
+    new_match_dict = new_match.model_dump()
+    _save_match(new_match_dict)
+
+    # Link rematch to previous match
+    match["rematch_match_id"] = new_id
+    _save_match(match)
+
+    return {
+        "rematch_match_id": new_id,
+        "status": new_match.status,
+        "match": new_match_dict,
+    }
 
 
 @router.get("/leaderboard")

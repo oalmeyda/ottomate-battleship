@@ -393,8 +393,16 @@
         ? "All enemy vessels have been sent to the ocean floor. Outstanding command!"
         : "Your fleet has been completely sunk. Honor to the fallen.";
 
+      let rematchBtnHtml = "";
+      if (match.rematch_match_id) {
+        rematchBtnHtml = `<button class="btn btn-primary" onclick="openMatch('${match.rematch_match_id}')" style="background:#22c55e; border-color:#22c55e;">🚀 Go to Re-match</button>`;
+      } else if (match.can_rematch) {
+        rematchBtnHtml = `<button class="btn btn-primary" onclick="handleRematch('${match.id}')" style="background:#22c55e; border-color:#22c55e;">🔄 Re-match</button>`;
+      }
+
       actions.innerHTML = `
-        <button class="btn btn-primary" onclick="showLobbyView()" style="background:#0284c7; border-color:#0284c7;">⚓ Return to Lobby</button>
+        ${rematchBtnHtml}
+        <button class="btn btn-secondary" onclick="showLobbyView()">⚓ Return to Lobby</button>
       `;
     }
   }
@@ -821,6 +829,17 @@
       refreshMatchState();
     } catch (err) {
       alert(`Surrender error: ${err.message}`);
+    }
+  };
+
+  window.handleRematch = async function (matchId) {
+    try {
+      const res = await apiFetch(`/api/matches/${matchId}/rematch`, { method: "POST" });
+      if (res && res.rematch_match_id) {
+        openMatch(res.rematch_match_id);
+      }
+    } catch (err) {
+      alert(`Failed to start rematch: ${err.message}`);
     }
   };
 

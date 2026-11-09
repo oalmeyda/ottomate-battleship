@@ -58,4 +58,5 @@ class BattleshipMatch(BaseSessionObject):
     winner_email: str | None = None
     winner_name: str | None = None
     completed_at: str | None = None
+    rematch_match_id: str | None = None
 

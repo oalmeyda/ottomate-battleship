@@ -211,3 +211,58 @@ def test_leaderboard_scopes_and_stats(client):
     assert h1_all_stats["wins"] == 1
     assert h1_all_stats["losses"] == 1
     assert h1_all_stats["win_rate"] == 50.0
+
+
+def test_rematch_flow(client):
+    # 1. Create PvE match as admin
+    res = client.post(
+        "/api/matches",
+        headers=auth_headers("admin@example.com"),
+        json={"title": "Midway Battle", "mode": "pve", "bot_difficulty": "medium"},
+    )
+    match_id = res.json()["match"]["id"]
+
+    # Rematch fails if not completed
+    rematch_fail = client.post(
+        f"/api/matches/{match_id}/rematch",
+        headers=auth_headers("admin@example.com"),
+    )
+    assert rematch_fail.status_code == 400
+
+    # Complete the match via surrender
+    client.post(
+        f"/api/matches/{match_id}/surrender",
+        headers=auth_headers("admin@example.com"),
+    )
+
+    # Rematch by unauthorized non-admin fails
+    unauth = client.post(
+        f"/api/matches/{match_id}/rematch",
+        headers=auth_headers("stranger@example.com"),
+    )
+    assert unauth.status_code == 403
+
+    # Rematch by admin succeeds
+    rematch_res = client.post(
+        f"/api/matches/{match_id}/rematch",
+        headers=auth_headers("admin@example.com"),
+    )
+    assert rematch_res.status_code == 200
+    rematch_id = rematch_res.json()["rematch_match_id"]
+    assert rematch_id != match_id
+
+    # Verify rematch match was initialized properly
+    snap = client.get(
+        f"/api/matches/{rematch_id}",
+        headers=auth_headers("admin@example.com"),
+    ).json()
+    assert snap["status"] == "setup"
+    assert "Rematch" in snap["title"]
+    assert snap["player2"]["ready"] is True  # Bot pre-deployed
+
+    # Idempotent call returns same rematch id
+    repeat_res = client.post(
+        f"/api/matches/{match_id}/rematch",
+        headers=auth_headers("admin@example.com"),
+    )
+    assert repeat_res.json()["rematch_match_id"] == rematch_id
