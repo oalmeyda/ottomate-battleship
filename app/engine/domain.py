@@ -6,6 +6,11 @@ import random
 from typing import Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
+from ottomate_core.grid_engine import (
+    format_grid_coordinate as _core_format_coord,
+    parse_grid_coordinate as _core_parse_coord,
+)
+
 GRID_SIZE = 10
 COLUMNS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 ROWS = [str(i) for i in range(1, 11)]
@@ -25,36 +30,12 @@ def parse_coordinate(coord: str) -> tuple[int, int]:
 
     Raises ValueError if invalid.
     """
-    if not isinstance(coord, str):
-        raise ValueError("Coordinate must be a string")
-    trimmed = coord.strip().upper()
-    if len(trimmed) < 2 or len(trimmed) > 3:
-        raise ValueError(f"Invalid coordinate format: {coord}")
-
-    col_char = trimmed[0]
-    row_part = trimmed[1:]
-
-    if col_char not in COLUMNS:
-        raise ValueError(f"Invalid column '{col_char}' in coordinate '{coord}'. Must be A-J.")
-
-    try:
-        row_num = int(row_part)
-    except ValueError as exc:
-        raise ValueError(f"Invalid row number '{row_part}' in coordinate '{coord}'") from exc
-
-    if row_num < 1 or row_num > 10:
-        raise ValueError(f"Row number must be between 1 and 10, got {row_num}")
-
-    row_idx = row_num - 1
-    col_idx = COLUMNS.index(col_char)
-    return row_idx, col_idx
+    return _core_parse_coord(coord, max_cols=GRID_SIZE, max_rows=GRID_SIZE)
 
 
 def format_coordinate(row: int, col: int) -> str:
     """Formats (row, col) 0-indexed indices into standard coordinate string (e.g. (0, 0) -> 'A1')."""
-    if not (0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE):
-        raise ValueError(f"Coordinates out of bounds: row={row}, col={col}")
-    return f"{COLUMNS[col]}{row + 1}"
+    return _core_format_coord(row, col, max_cols=GRID_SIZE, max_rows=GRID_SIZE)
 
 
 class ShipPlacement(BaseModel):

@@ -511,6 +511,13 @@
     const desc = document.getElementById("completed-result-desc");
     const actions = document.getElementById("completed-result-actions");
 
+    if (isWinner && !match._victorySoundPlayed) {
+      match._victorySoundPlayed = true;
+      if (typeof window !== "undefined" && window.Ottomate && window.Ottomate.audio && typeof window.Ottomate.audio.playWinFanfare === "function") {
+        window.Ottomate.audio.playWinFanfare();
+      }
+    }
+
     if (badge) {
       badge.className = `completed-card-badge ${isWinner ? "victory" : "defeat"}`;
       badge.textContent = isWinner ? "🏆 NAVAL VICTORY" : "💥 FLEET SUNK";
@@ -977,6 +984,9 @@
     // Update player hit streak badge if hit
     const playerBadge = document.getElementById("player-streak-badge");
     if (res.shot.result === "hit") {
+      if (typeof window !== "undefined" && window.Ottomate && window.Ottomate.audio && typeof window.Ottomate.audio.playExplosion === "function") {
+        window.Ottomate.audio.playExplosion();
+      }
       const pStreak = computeActiveStreak(res.history || [], currentUser ? currentUser.email : "");
       if (playerBadge) {
         playerBadge.style.display = "inline-flex";
@@ -994,6 +1004,9 @@
     }
 
     // Player missed:
+    if (typeof window !== "undefined" && window.Ottomate && window.Ottomate.audio && typeof window.Ottomate.audio.playClick === "function") {
+      window.Ottomate.audio.playClick();
+    }
     if (playerBadge) playerBadge.style.display = "none";
 
     // 2. If bot responded with shots, play them out sequentially with pacing
@@ -1035,6 +1048,9 @@
         }
 
         if (bShot.result === "hit") {
+          if (typeof window !== "undefined" && window.Ottomate && window.Ottomate.audio && typeof window.Ottomate.audio.playExplosion === "function") {
+            window.Ottomate.audio.playExplosion();
+          }
           currentEnemyStreak++;
           if (enemyBadge) {
             enemyBadge.style.display = "inline-flex";
@@ -1064,6 +1080,9 @@
           await sleep(bShot.sunk ? 1600 : 1350);
         } else {
           // Bot missed:
+          if (typeof window !== "undefined" && window.Ottomate && window.Ottomate.audio && typeof window.Ottomate.audio.playClick === "function") {
+            window.Ottomate.audio.playClick();
+          }
           if (enemyBadge) {
             enemyBadge.style.display = "none";
           }
