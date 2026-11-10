@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-11-09
+
+### Fixed
+- **Header Auth State & Other Auth Suppression**:
+  - Integrated `Ottomate.updateProfilePill(user)` and `Ottomate.toggleAuthButtons(true/false)` to automatically hide competing sign-in buttons (Email link, Google) once logged in.
+  - Upgraded to `ottomate-core>=1.28.1` with hardened multi-provider auth button suppression and MutationObserver profile pill listener.
+
 ## [0.1.2] - 2026-11-09
 
 ### Fixed

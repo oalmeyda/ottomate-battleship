@@ -93,6 +93,9 @@
   }
 
   function showSignInPrompt() {
+    if (window.Ottomate && typeof window.Ottomate.toggleAuthButtons === "function") {
+      window.Ottomate.toggleAuthButtons(false);
+    }
     const banner = document.getElementById("status-banner");
     banner.style.display = "flex";
     document.getElementById("turn-dot").className = "status-indicator-dot waiting-turn";
@@ -103,19 +106,15 @@
   }
 
   function updateHeaderUser(user) {
-    const profilePill = document.getElementById("profile-pill");
-    const profileAvatar = document.getElementById("profile-avatar");
-    const profileName = document.getElementById("profile-name");
-    const btnLogout = document.getElementById("btn-logout");
-    const btnDir = document.getElementById("btn-directory");
-
-    if (profilePill) profilePill.style.display = "flex";
-    if (profileName) profileName.textContent = user.nickname || user.display_name || user.email;
-    if (profileAvatar) {
-      const initials = (user.display_name || user.email).substring(0, 2).toUpperCase();
-      profileAvatar.textContent = initials;
+    if (window.Ottomate) {
+      if (typeof window.Ottomate.updateProfilePill === "function") {
+        window.Ottomate.updateProfilePill(user);
+      }
+      if (typeof window.Ottomate.toggleAuthButtons === "function") {
+        window.Ottomate.toggleAuthButtons(true);
+      }
     }
-    if (btnLogout) btnLogout.style.display = "inline-block";
+    const btnDir = document.getElementById("btn-directory");
     if (btnDir && (user.system_role === "super_admin" || user.roles?.battleship === "game_admin")) {
       btnDir.style.display = "inline-block";
     }
