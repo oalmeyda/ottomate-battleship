@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-11-10
+
+### Fixed
+- **Hub Pending Action Cleanup (`app/api/battleship_router.py`)**:
+  - Wired `clear_turn_pending_action("battleship", match_id)` upon match deletion to prevent ghost turn entries in the Hub.
+- **Canonical Service URL Resolution & Logging (`app/api/battleship_router.py`)**:
+  - Retrieved canonical URL dynamically from service configuration metadata (`SERVICE_CARD_METADATA`) and added exception logging on Hub synchronization failures.
+
+### Changed
+- **Consolidated API Client (`app/static/js/battleship.js`)**:
+  - Eliminated custom fallback `apiFetch` logic in favor of unified `window.Ottomate.api()`.
+- **Upgraded Core Dependency**: Bumped to `ottomate-core>=1.29.0,<1.30` vendoring wheel `1.29.0` with synthesized audio mute toggle (`Ottomate.audio`), daily challenge seed isolation, and error detail preservation.
+- **Cache-Busting Asset Alignment (`index.html`)**: Aligned static asset query parameters to `?v=0.1.5`.
+
 ## [0.1.4] - 2026-11-10
 
 ### Added
