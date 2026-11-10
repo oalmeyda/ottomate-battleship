@@ -154,30 +154,7 @@
     if (window.Ottomate && typeof window.Ottomate.api === "function") {
       return window.Ottomate.api(url, options);
     }
-    const headers = options.headers || {};
-    const token = window.Ottomate && typeof window.Ottomate.getStoredAuthToken === "function"
-      ? window.Ottomate.getStoredAuthToken()
-      : null;
-
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    if (options.body && typeof options.body === "object") {
-      headers["Content-Type"] = "application/json";
-      options.body = JSON.stringify(options.body);
-    }
-    options.headers = headers;
-
-    const res = await fetch(url, options);
-    if (!res.ok) {
-      let errorMsg = `HTTP ${res.status}`;
-      try {
-        const errJson = await res.json();
-        if (errJson.detail) errorMsg = errJson.detail;
-      } catch (e) {}
-      throw new Error(errorMsg);
-    }
-    return res.json();
+    return fetch(url, options).then((r) => (r.status === 204 ? null : r.json()));
   }
 
   async function loadUserDatalist() {
