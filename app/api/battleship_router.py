@@ -9,9 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from ottomate_core.auth import User
 from ottomate_core.db import (
+    clear_turn_pending_action,
     database,
     normalize_email,
     resolve_user_display_names,
+    sync_turn_pending_action,
 )
 from ottomate_core.deps import (
     can_act_as_proxy,
@@ -91,11 +93,49 @@ def _is_admin(user: User, match: dict[str, Any] | None = None) -> bool:
     return False
 
 
+def _sync_match_turn(match: dict[str, Any]) -> None:
+    """Synchronizes active player turn with the central Hub Action Center."""
+    match_id = match.get("id")
+    if not match_id:
+        return
+    status_val = match.get("status")
+    turn_player = match.get("turn_player")
+    is_active = (status_val == "in_progress") and bool(turn_player)
+    is_bot = is_bot_email(turn_player) if turn_player else False
+
+    if not is_active or is_bot:
+        try:
+            clear_turn_pending_action("battleship", match_id)
+        except Exception:
+            pass
+        return
+
+    p1 = match.get("player1_email")
+    opp_name = match.get("player2_name") if turn_player == p1 else match.get("player1_name")
+
+    try:
+        sync_turn_pending_action(
+            service_id="battleship",
+            game_id=match_id,
+            turn_user_id=turn_player,
+            is_active=True,
+            is_bot=False,
+            title="Ottomate Battleship",
+            subtitle=f"Artillery Duel vs {opp_name or 'Opponent'}",
+            message="Enemy salvo incoming! It's your turn to return fire.",
+            url="https://ottomate-battleship.web.app",
+            icon="⚓",
+        )
+    except Exception:
+        pass
+
+
 def _save_match(match_data: dict[str, Any]) -> None:
     db = database()
     match_id = match_data["id"]
     match_data["updated_at"] = _now_iso()
     db.collection(MATCHES_COLLECTION).document(match_id).set(match_data)
+    _sync_match_turn(match_data)
 
 
 def _run_bot_turns_if_active(match: dict[str, Any]) -> list[dict[str, Any]]:

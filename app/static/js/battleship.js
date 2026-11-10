@@ -43,12 +43,19 @@
   }
 
   function setupAuth() {
+    if (window.Ottomate && window.Ottomate.people && typeof window.Ottomate.people.init === "function") {
+      window.Ottomate.people.init({
+        appName: "Ottomate Battleship",
+        onError: (msg) => console.warn(msg),
+      });
+    }
+
     if (window.Ottomate && typeof window.Ottomate.initHeader === "function") {
       window.Ottomate.initHeader({
         onSignOut: () => logout(),
         onBrandClicked: () => showLobbyView(),
-        onProfileClicked: () => window.showProfileModal && window.showProfileModal(),
-        onDirectoryClicked: () => window.showDirectoryModal && window.showDirectoryModal(),
+        onProfileClicked: () => showProfileModal(),
+        onDirectoryClicked: () => showDirectoryModal(),
       });
     }
 
@@ -127,9 +134,26 @@
     location.reload();
   }
 
+  function showProfileModal() {
+    if (window.Ottomate && window.Ottomate.people && typeof window.Ottomate.people.showProfileModal === "function") {
+      window.Ottomate.people.showProfileModal();
+    }
+  }
+  window.showProfileModal = showProfileModal;
+
+  function showDirectoryModal() {
+    if (window.Ottomate && window.Ottomate.people && typeof window.Ottomate.people.showDirectoryModal === "function") {
+      window.Ottomate.people.showDirectoryModal();
+    }
+  }
+  window.showDirectoryModal = showDirectoryModal;
+
   // --- API Fetch Helper ---
 
   async function apiFetch(url, options = {}) {
+    if (window.Ottomate && typeof window.Ottomate.api === "function") {
+      return window.Ottomate.api(url, options);
+    }
     const headers = options.headers || {};
     const token = window.Ottomate && typeof window.Ottomate.getStoredAuthToken === "function"
       ? window.Ottomate.getStoredAuthToken()

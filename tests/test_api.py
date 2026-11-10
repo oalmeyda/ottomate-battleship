@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from ottomate_core.db import get_user_pending_actions
 from ottomate_core.testing import FakeDatabase, use_database, use_users_database, use_organizers
 from app.main import app
 
@@ -121,6 +122,10 @@ def test_pvp_match_lifecycle_and_fog_of_war(client):
     assert bob_deploy_res.json()["status"] == "in_progress"
     assert bob_deploy_res.json()["turn_player"] == "alice@example.com"
 
+    # Action Center: Alice has turn action
+    alice_actions = get_user_pending_actions("alice@example.com")
+    assert any(a["service_id"] == "battleship" and a["action_type"] == "turn" for a in alice_actions)
+
     # 5. Check Fog of War Snapshot for Alice
     snapshot_res = client.get(
         f"/api/matches/{match_id}",
@@ -172,6 +177,10 @@ def test_pvp_match_lifecycle_and_fog_of_war(client):
     # Miss switches turn to Bob!
     assert miss_data["turn_player"] == "bob@example.com"
 
+    # Action Center: Turn action switched from Alice to Bob
+    assert not any(a["service_id"] == "battleship" for a in get_user_pending_actions("alice@example.com"))
+    assert any(a["service_id"] == "battleship" and a["action_type"] == "turn" for a in get_user_pending_actions("bob@example.com"))
+
     # 9. Bob surrenders
     surrender_res = client.post(
         f"/api/matches/{match_id}/surrender",
@@ -179,6 +188,9 @@ def test_pvp_match_lifecycle_and_fog_of_war(client):
     )
     assert surrender_res.status_code == 200
     assert surrender_res.json()["winner"] == "alice@example.com"
+
+    # Action Center: Completed match clears all turn actions
+    assert not any(a["service_id"] == "battleship" for a in get_user_pending_actions("bob@example.com"))
 
 
 def test_user_stats(client):
