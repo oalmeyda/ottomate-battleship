@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -23,7 +24,7 @@ from ottomate_core.deps import (
     is_super_admin,
 )
 
-from app.config import SERVICE_NAME, dev_mode_enabled
+from app.config import SERVICE_CARD_METADATA, SERVICE_NAME, dev_mode_enabled
 from app.engine.bot import (
     BOT_PROFILES,
     decide_bot_shot,
@@ -44,6 +45,7 @@ from app.models import (
 
 router = APIRouter(prefix="/api", tags=["battleship"])
 MATCHES_COLLECTION = "battleship_matches"
+logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
@@ -107,11 +109,12 @@ def _sync_match_turn(match: dict[str, Any]) -> None:
         try:
             clear_turn_pending_action("battleship", match_id)
         except Exception:
-            pass
+            logger.warning("Failed to clear turn pending action for match %s", match_id, exc_info=True)
         return
 
     p1 = match.get("player1_email")
     opp_name = match.get("player2_name") if turn_player == p1 else match.get("player1_name")
+    service_url = SERVICE_CARD_METADATA.get("url", "https://ottomate-battleship.web.app")
 
     try:
         sync_turn_pending_action(
@@ -123,11 +126,11 @@ def _sync_match_turn(match: dict[str, Any]) -> None:
             title="Ottomate Battleship",
             subtitle=f"Artillery Duel vs {opp_name or 'Opponent'}",
             message="Enemy salvo incoming! It's your turn to return fire.",
-            url="https://ottomate-battleship.web.app",
+            url=service_url,
             icon="⚓",
         )
     except Exception:
-        pass
+        logger.warning("Failed to sync turn pending action for match %s", match_id, exc_info=True)
 
 
 def _save_match(match_data: dict[str, Any]) -> None:
@@ -623,6 +626,10 @@ def delete_match(
 
     db = database()
     db.collection(MATCHES_COLLECTION).document(match_id).delete()
+    try:
+        clear_turn_pending_action("battleship", match_id)
+    except Exception:
+        logger.warning("Failed to clear Hub pending action for deleted match %s", match_id, exc_info=True)
     return {"message": f"Match '{match_id}' deleted successfully"}
 
 

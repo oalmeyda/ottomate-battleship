@@ -311,3 +311,69 @@ def test_rematch_flow(client):
         headers=auth_headers("admin@example.com"),
     )
     assert repeat_res.json()["rematch_match_id"] == rematch_id
+
+
+def test_delete_match_clears_pending_action(client):
+    # 1. Create PvP match
+    res = client.post(
+        "/api/matches",
+        headers=auth_headers("alice@example.com"),
+        json={"title": "Delete Action Test", "mode": "pvp"},
+    )
+    assert res.status_code == 201
+    match_id = res.json()["match"]["id"]
+
+    # 2. Bob joins
+    client.post(
+        f"/api/matches/{match_id}/join",
+        headers=auth_headers("bob@example.com"),
+    )
+
+    fleet = [
+        {"ship_id": "carrier", "row": 0, "col": 0, "orientation": "horizontal"},
+        {"ship_id": "battleship", "row": 1, "col": 0, "orientation": "horizontal"},
+        {"ship_id": "cruiser", "row": 2, "col": 0, "orientation": "horizontal"},
+        {"ship_id": "submarine", "row": 3, "col": 0, "orientation": "horizontal"},
+        {"ship_id": "destroyer", "row": 4, "col": 0, "orientation": "horizontal"},
+    ]
+    # Alice deploys
+    client.post(
+        f"/api/matches/{match_id}/deploy",
+        headers=auth_headers("alice@example.com"),
+        json={"ships": fleet},
+    )
+    # Bob deploys -> match transitions to in_progress with turn for alice
+    client.post(
+        f"/api/matches/{match_id}/deploy",
+        headers=auth_headers("bob@example.com"),
+        json={"ships": fleet},
+    )
+
+    # Action Center: Alice has turn action
+    alice_actions = get_user_pending_actions("alice@example.com")
+    assert any(a["service_id"] == "battleship" and a["action_type"] == "turn" for a in alice_actions)
+
+    # Non-player / non-admin cannot delete
+    unauth = client.delete(
+        f"/api/matches/{match_id}",
+        headers=auth_headers("stranger@example.com"),
+    )
+    assert unauth.status_code == 403
+
+    # Alice (creator) deletes match
+    del_res = client.delete(
+        f"/api/matches/{match_id}",
+        headers=auth_headers("alice@example.com"),
+    )
+    assert del_res.status_code == 200
+
+    # Match no longer exists
+    get_res = client.get(
+        f"/api/matches/{match_id}",
+        headers=auth_headers("alice@example.com"),
+    )
+    assert get_res.status_code == 404
+
+    # Action Center: Pending action is cleared
+    alice_actions_after = get_user_pending_actions("alice@example.com")
+    assert not any(a["service_id"] == "battleship" for a in alice_actions_after)
