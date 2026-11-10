@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-11-09
+
+### Fixed
+- **Mobile Responsive Layout & Grid Overflow**:
+  - Eliminated horizontal over-running and viewport blowout on mobile devices ($\le 600\text{px}$) by enforcing `overflow-x: hidden` and `box-sizing: border-box`.
+  - Added wrapping to `.grid-fleet-row`, `.fleet-health-bar`, and `.grid-header-row` so ship health badges stack gracefully instead of pushing the card past the screen edge.
+  - Scaled tactical ocean grids responsively on mobile screens down to 24px/28px per cell with compact padding and font sizing.
+
 ## [0.1.1] - 2026-11-09
 
 ### Added
