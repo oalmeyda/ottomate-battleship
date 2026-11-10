@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-11-10
+
+### Added
+- **Core Grid Engine Integration (`app/services/battleship_engine.py`)**:
+  - Delegated 2D coordinate parsing (`parse_coordinate`) and formatting (`format_coordinate`) to `ottomate_core.grid_engine`.
+- **Synthesized Web Audio Engine (`app/static/js/battleship.js`, `index.html`)**:
+  - Loaded `/core-static/js/ottomate-audio.js`.
+  - Wired interactive audio effects for ocean clicks, ship hits/explosions, and victory fanfare.
+- **Hub Turn Action Center Synchronization (`app/api/battleship_router.py`)**:
+  - Wired `sync_turn_pending_action` and `clear_turn_pending_action` for PvP match turns and match completions.
+- **People Modal Auto-Binding (`app/static/js/battleship.js`)**:
+  - Initialized `window.Ottomate.people.init({ appName: "Ottomate Battleship" })` and wired profile/directory modal delegates.
+- **Shared API Helper**:
+  - Delegated `fetch` requests to `window.Ottomate.api()`.
+
+### Changed
+- **Upgraded Core Dependency**: Bumped to `ottomate-core>=1.28.4` with automated cache-buster query verification.
+- **Cache-Busting Asset Alignment (`index.html`)**: Aligned all static asset query parameters to `?v=0.1.4`.
+
 ## [0.1.3] - 2026-11-09
 
 ### Fixed
