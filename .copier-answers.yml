@@ -1,6 +1,6 @@
 # Managed by Copier from ottomate-core; DO NOT EDIT MANUALLY
-_commit: v1.29.0
+_commit: v1.29.3
 _src_path: /home/ottomate/code/ottomate-core
 project_name: ottomate-battleship
 project_type: service
-python_version: '3.12'
+python_version: '3.15'

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-11-11
+
+### Changed
+- **Runtime Upgrade to Python 3.15 (`Dockerfile`, `.github/workflows/ci.yml`, `pyproject.toml`)**:
+  - Upgraded runtime to Python 3.15 (`FROM python:3.15-slim` in container and `requires-python = ">=3.15"`).
+  - Synchronized Copier repository templates with `python_version: '3.15'` from `ottomate-core` v1.29.3.
+- **Vendored Core Dependency (`wheels/`)**:
+  - Upgraded vendored wheel to `ottomate_core-1.29.3-py3-none-any.whl` (`ottomate-core>=1.29.3,<1.30`) with recursive MutationObserver freeze protection.
+- **Cache-Busting Static Assets (`index.html`)**:
+  - Aligned static asset query parameters to `?v=0.1.6`.
+
 ## [0.1.5] - 2026-11-10
 
 ### Fixed
