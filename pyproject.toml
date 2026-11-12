@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ottomate-battleship"
-version = "2.0.0"
+version = "2.0.1"
 description = "Ottomate Battleship: Classic 1v1 naval strategy game with tactical radar, fleet deployment, and PvP/PvE modes."
 readme = "README.md"
 requires-python = ">=3.15"
