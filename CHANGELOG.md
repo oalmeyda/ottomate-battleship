@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-11-12
+
+### Changed
+- **Ecosystem Major Version Synchronization**:
+  - Bumped major version to `2.0.0` aligned across all Ottomate services.
+  - Upgraded dependency constraint to `ottomate-core>=2.0.0,<3`.
+  - Vendored `ottomate_core-2.0.0-py3-none-any.whl`.
+  - Re-synchronized Copier repository templates from `ottomate-core` at `v2.0.0`.
+  - Updated frontend cache-busting asset query strings and version badge to `v2.0.0`.
+
 ## [0.1.6] - 2026-11-11
 
 ### Changed
