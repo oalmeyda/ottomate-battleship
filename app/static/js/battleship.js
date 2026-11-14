@@ -151,10 +151,7 @@
   // --- API Fetch Helper ---
 
   async function apiFetch(url, options = {}) {
-    if (window.Ottomate && typeof window.Ottomate.api === "function") {
-      return window.Ottomate.api(url, options);
-    }
-    return fetch(url, options).then((r) => (r.status === 204 ? null : r.json()));
+    return window.Ottomate.api(url, options);
   }
 
   async function loadUserDatalist() {
