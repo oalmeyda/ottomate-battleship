@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2026-11-16
+
+### Changed
+- **Ecosystem Upgrade (`ottomate-core==2.0.3`)**:
+  - Vendored `ottomate_core-2.0.3-py3-none-any.whl` fixing Directory modal table and action button overflow (`max-width: 1040px`, cell ellipsis truncation, contained `.otto-table-wrap`, and `860px` responsive stacked-card breakpoint).
+  - Bumped version to `2.0.3` and updated frontend asset query strings.
+
 ## [2.0.2] - 2026-11-14
 
 ### Fixed
