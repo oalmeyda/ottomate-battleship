@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ottomate_core.config import configure_service
 
-VERSION = "2.0.3"
+VERSION = "2.0.4"
 SERVICE_NAME = "ottomate-battleship"
 APP_TITLE = "Ottomate Battleship"
 

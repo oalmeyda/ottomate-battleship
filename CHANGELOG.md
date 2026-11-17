@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2026-11-17
+
+### Fixed
+- **Mobile Leaderboard Modal Two-Axis Scrolling (`index.html`, `battleship.css`)**:
+  - Replaced hardcoded inline `overflow-x: hidden` with structured `.leaderboard-scroll-container` (`overflow: auto`, `-webkit-overflow-scrolling: touch`, `overscroll-behavior: contain`).
+  - Added sticky table header row and established a minimum table width (`min-width: 720px`) so mobile users in portrait orientation can smoothly swipe horizontally to view all 9 combat statistics columns (Rank, Commander, Record, Win %, Hit %, Sunk/Lost, Hit Streak, Win Streak, Flawless) without needing to rotate device to landscape.
+  - Added mobile horizontal scroll hint and flex-contained dialog body so header and footer ("Close" button) remain pinned.
+- **Mobile Fleet Deployment Dock & Ready Button Visibility (`index.html`, `battleship.css`)**:
+  - Refactored `.dock-header` and `.dock-actions` to support flexible wrapping on screens <= 768px, preventing control buttons from being clipped off-screen to the right in mobile portrait mode.
+  - Positioned `🔄 Rotate` and `🎲 Randomize` side-by-side with equal share, and rendered `⚓ Deploy & Ready` as a full-width, prominently styled green action button with dynamic pulse animations when ready.
+  - Optimized ship placement selector into a balanced 2-column responsive grid on mobile viewports to prevent excessive vertical scrolling.
+  - Updated cache-busting query strings on frontend assets to `?v=2.0.4`.
+
 ## [2.0.3] - 2026-11-16
 
 ### Changed
