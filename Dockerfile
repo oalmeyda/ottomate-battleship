@@ -1,7 +1,6 @@
 FROM python:3.15-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PORT=8080
 
 WORKDIR /app
@@ -12,7 +11,8 @@ RUN pip install --no-cache-dir ./wheels/*.whl
 COPY pyproject.toml ./
 COPY app ./app
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . && \
+    python -m compileall -q /usr/local/lib/python3.15/site-packages /app/app
 
 USER 10001
 
